@@ -362,6 +362,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pri);box
 .cd-chip .tt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cd-chip i{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .cd-chip.hecha{opacity:.6;text-decoration:line-through}
+/* check de "completar desde la agenda" (línea del día y chips de todo el día) */
+.cd-chk{width:20px;height:20px;min-width:20px;border:2px solid var(--sub);border-radius:7px;background:none;position:relative;flex-shrink:0;padding:0;display:inline-block}
+.cd-chk.on{background:var(--ok);border-color:var(--ok)}
+.cd-chk.on:after{content:"\2713";position:absolute;inset:0;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.cd-chip .cd-chk{width:16px;height:16px;min-width:16px;border-radius:5px}
+.cd-chip .cd-chk.on:after{font-size:10px}
 .cd-tl{margin-top:4px}
 .cd-hrow{display:grid;grid-template-columns:50px 1fr;gap:8px;min-height:46px;position:relative;border-top:1px solid var(--bor)}
 .cd-hrow:first-child{border-top:none}
@@ -1095,7 +1101,7 @@ var S=null;
 var UIf=formVacio();
 var telRespId=0; /* responsable al que pertenece el campo de teléfono */
 var swipeSuprime=false;
-function formVacio(){return {id:0,titulo:'',nota:'',fecha:'',hora:'',rec:'',recHora:'',principal:'',tipo:'mio',part:[],audio:'',audioDur:0,dur:0,pri:'normal',
+function formVacio(){return {id:0,titulo:'',nota:'',fecha:'',hora:'',rec:'',recHora:'',principal:'',tipo:'mio',part:[],audio:'',audioDur:0,dur:0,pri:'normal',rep:'',
   respAbierto:false,respNombre:'',respCargo:'',respTel:''};}
 
 function coloresDef(){return {mio:'#1E5AE8',seg:'#1F8A3C',rev:'#C25A00'};}
@@ -1256,7 +1262,10 @@ function cargar(){
       if(!t.tipo)t.tipo=t.principal?'seg':'mio';
       if(!TIPOS[t.tipo])t.tipo='mio';
       if(t.cumplida===undefined)t.cumplida=t.hecha?(t.creada||''):'';
-      if(t.creada===undefined)t.creada='';});
+      if(t.creada===undefined)t.creada='';
+      if(t.rep===undefined)t.rep='';
+      if(t.rep&&['diaria','semanal','mensual'].indexOf(t.rep)<0)t.rep='';
+      if(t.rep&&(typeof t.repHechas!=='object'||!t.repHechas))t.repHechas={};});
   });
 }
 function guardar(){
@@ -1301,7 +1310,36 @@ function avatar(id,size){var r=respPorId(id);var c=r?r.color:COL[7];var t=r?inic
 
 /* tareas */
 function porId(id){var ts=U().tareas;for(var i=0;i<ts.length;i++)if(ts[i].id===id)return ts[i];return null;}
-function tareasDeDia(f){return U().tareas.filter(function(t){return !esIndic(t)&&t.fecha===f;});}
+/* repetición: la tarea madre genera sus ocurrencias en la agenda sin duplicar datos */
+var REP_NOMBRES={diaria:'Diaria',semanal:'Semanal',mensual:'Mensual'};
+function repOcurre(t,f){
+  if(!t.rep||!t.fecha||f<t.fecha)return false;
+  if(t.rep==='diaria')return true;
+  if(t.rep==='semanal')return parse(f).getDay()===parse(t.fecha).getDay();
+  if(t.rep==='mensual')return parse(f).getDate()===parse(t.fecha).getDate();
+  return false;
+}
+function ocHecha(t,f){return !!(t.repHechas&&t.repHechas[f]);}
+function ocurrencia(t,f){
+  var o={};for(var k in t)o[k]=t[k];
+  o.fecha=f;o.__oc=true;o.__madre=t.id;
+  o.hecha=ocHecha(t,f);o.cumplida=o.hecha?(t.repHechas[f]||f):'';
+  return o;
+}
+function tareasDeDia(f){
+  var out=[];
+  U().tareas.forEach(function(t){
+    if(esIndic(t))return;
+    if(t.rep){if(repOcurre(t,f))out.push(ocurrencia(t,f));}
+    else if(t.fecha===f)out.push(t);
+  });
+  return out;
+}
+function toggleOcurrencia(t,f){
+  if(!t.repHechas||typeof t.repHechas!=='object')t.repHechas={};
+  if(t.repHechas[f]){delete t.repHechas[f];guardar();render();toast('Desmarcada');return;}
+  t.repHechas[f]=hoyISO();guardar();render();toast('✔ Marcada como cumplida');
+}
 function recordatoriosHoy(){var h=hoyISO();return U().tareas.filter(function(t){return !t.hecha&&t.rec&&t.rec<=h;});}
 function indicacionesPend(){return U().tareas.filter(function(t){return esIndic(t)&&!t.hecha;});}
 function involucrada(t,id){if(+t.principal===+id)return true;
@@ -1380,16 +1418,18 @@ function metaHTML(t){
   if(t.fecha&&t.hora)m+='<span class="badge">🕒 '+esc(t.hora)+(t.dur?' · '+esc(fmtMin(t.dur)):'')+'</span>';
   if(t.pri==='alta')m+='<span class="badge venc">⚡ Alta</span>';
   else if(t.pri==='baja')m+='<span class="badge">Baja</span>';
+  if(t.rep)m+='<span class="badge rec">🔁 '+(REP_NOMBRES[t.rep]||'Repetida')+'</span>';
   if(t.rec&&!t.hecha)m+='<span class="badge rec">🔔 '+esc(linda(t.rec))+(t.recHora?' '+esc(t.recHora):'')+'</span>';
   if(t.audio)m+='<span class="badge rec">🎤 '+(t.audioDur?fmtDur(t.audioDur):'Nota de voz')+'</span>';
-  if(vencida(t))m+='<span class="badge venc">Vencida</span>';
+  if(vencida(t)&&!t.rep)m+='<span class="badge venc">Vencida</span>';
   if(t.hecha&&t.cumplida)m+='<span class="badge ok">✔ '+esc(linda(t.cumplida))+'</span>';
   return '<div class="meta">'+m+'</div>';
 }
 function htmlTarea(t){
   var tit=t.titulo||(t.audio?'Nota de voz':'');
-  return '<div class="swipe" data-id="'+t.id+'">'+
-    '<div class="swipe-del">🗑 Eliminar</div>'+
+  var oc=t.__oc?' data-oc="'+t.fecha+'"':'';
+  return '<div class="swipe" data-id="'+t.id+'"'+oc+'>'+
+    (oc?'':'<div class="swipe-del">🗑 Eliminar</div>')+
     '<div class="tarea'+(t.hecha?' done':'')+'" style="border-left-color:'+colorTipo(t)+'">'+
       '<button class="chk'+(t.hecha?' on':'')+'" data-a="toggle"></button>'+
       '<div class="cuerpo" data-a="editar"><div class="tt">'+esc(tit)+'</div>'+metaHTML(t)+
@@ -1397,9 +1437,9 @@ function htmlTarea(t){
       '<div class="acc">'+
         '<button class="sh" data-a="compartir" aria-label="Compartir por WhatsApp">📤</button>'+
         '<button class="ed" data-a="editar" aria-label="Editar">✏️</button>'+
-        '<button class="el" data-a="borrar" aria-label="Eliminar">🗑</button>'+
+        (oc?'':'<button class="el" data-a="borrar" aria-label="Eliminar">🗑</button>')+
       '</div>'+
-    '</div><div class="swipe-prog"></div></div>';
+    '</div>'+(oc?'':'<div class="swipe-prog"></div>')+'</div>';
 }
 function lista(ts){return ts.length?ts.map(htmlTarea).join(''):'<div class="vacio">Nada por aquí.</div>';}
 function listaTareasFiltro(){
@@ -2095,8 +2135,11 @@ function calTareaMini(t){
   if(pr)sub.push(pr.nombre);
   if(t.pri==='alta')sub.push('⚡ Alta');
   if(t.hecha)sub.push('✔ Cumplida');
-  return '<button type="button" class="cd-t'+(t.hecha?' hecha':'')+'" data-tarea="'+t.id+'" style="--tc:'+colorTipo(t)+'">'+
-    '<span class="cd-dot"></span><span class="cd-tt">'+esc(t.titulo||'Nota de voz')+'</span>'+
+  if(t.rep)sub.push('🔁 '+(REP_NOMBRES[t.rep]||''));
+  var oc=t.__oc?' data-oc="'+t.fecha+'"':'';
+  return '<button type="button" class="cd-t'+(t.hecha?' hecha':'')+'" data-tarea="'+t.id+'"'+oc+' style="--tc:'+colorTipo(t)+'">'+
+    '<span class="cd-chk'+(t.hecha?' on':'')+'" data-check="'+t.id+'"'+oc+' role="button" tabindex="-1" aria-label="Marcar como cumplida"></span>'+
+    '<span class="cd-tt">'+esc(t.titulo||'Nota de voz')+'</span>'+
     (sub.length?'<span class="cd-sub">'+esc(sub.join(' · '))+'</span>':'')+'</button>';
 }
 function calPips(f){
@@ -2106,7 +2149,9 @@ function calPips(f){
   return p;
 }
 function calTareasRango(desde,hasta){
-  return U().tareas.filter(function(t){return !esIndic(t)&&t.fecha&&t.fecha>=desde&&t.fecha<=hasta;});
+  var out=[],f=desde,paso=0;
+  while(f&&f<=hasta&&paso<800){out=out.concat(tareasDeDia(f));f=sumar(f,1);paso++;}
+  return out;
 }
 function calEnHoy(){
   var v=S.ui.calVista||'mes',d=new Date();
@@ -2198,11 +2243,14 @@ function calSemanaHTML(){
       '<span class="cal-cuenta" style="margin-left:auto">Toca un día para abrirlo</span></div>';
 }
 function calAnioHTML(){
-  var anio=S.ui.calAnio,hoy=new Date(),cnt=[0,0,0,0,0,0,0,0,0,0,0,0],pref=String(anio)+'-';
-  U().tareas.forEach(function(t){
-    if(esIndic(t)||!t.fecha||t.fecha.indexOf(pref)!==0)return;
-    var mm=+t.fecha.slice(5,7)-1;if(mm>=0&&mm<12)cnt[mm]++;
-  });
+  var anio=S.ui.calAnio,hoy=new Date(),cnt=[0,0,0,0,0,0,0,0,0,0,0,0];
+  for(var m=0;m<12;m++){
+    var nd=new Date(anio,m+1,0).getDate();
+    for(var d=1;d<=nd;d++){
+      var f=anio+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      cnt[m]+=tareasDeDia(f).length;
+    }
+  }
   var max=Math.max.apply(null,cnt);
   return '<div class="cal-anio">'+MESE.map(function(m,i){
     return '<button type="button" class="cal-mes'+(cnt[i]?' tiene':'')+((anio===hoy.getFullYear()&&i===hoy.getMonth())?' hoy':'')+'" data-mes="'+i+'">'+
@@ -2211,9 +2259,14 @@ function calAnioHTML(){
   }).join('')+'</div>';
 }
 function calAnioResumenHTML(){
-  var anio=S.ui.calAnio,pref=String(anio)+'-',cnt=[0,0,0,0,0,0,0,0,0,0,0,0];
-  var ts=U().tareas.filter(function(t){return !esIndic(t)&&t.fecha&&t.fecha.indexOf(pref)===0;});
-  ts.forEach(function(t){var mm=+t.fecha.slice(5,7)-1;if(mm>=0&&mm<12)cnt[mm]++;});
+  var anio=S.ui.calAnio,cnt=[0,0,0,0,0,0,0,0,0,0,0,0],ts=[];
+  for(var m=0;m<12;m++){
+    var nd=new Date(anio,m+1,0).getDate();
+    for(var d=1;d<=nd;d++){
+      var f=anio+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      var td=tareasDeDia(f);cnt[m]+=td.length;ts=ts.concat(td);
+    }
+  }
   var hechas=ts.filter(function(t){return t.hecha;}).length;
   var pen=ts.length-hechas,max=-1,pct=ts.length?Math.round(hechas/ts.length*100):0;
   cnt.forEach(function(n,i){if(n>0&&(max<0||n>cnt[max]))max=i;});
@@ -2259,12 +2312,15 @@ function calDiaHTML(){
   var pct=ts.length?Math.round(hechas/ts.length*100):0;
   var todoDia=sinHora.length?sinHora.map(function(t){
     var pr=respPorId(t.principal);
-    return '<button type="button" class="cd-chip'+(t.hecha?' hecha':'')+'" data-tarea="'+t.id+'" style="border-left:3px solid '+colorTipo(t)+'">'+
+    var oc=t.__oc?' data-oc="'+t.fecha+'"':'';
+    return '<button type="button" class="cd-chip'+(t.hecha?' hecha':'')+'" data-tarea="'+t.id+'"'+oc+' style="border-left:3px solid '+colorTipo(t)+'">'+
+      '<span class="cd-chk'+(t.hecha?' on':'')+'" data-check="'+t.id+'"'+oc+' role="button" tabindex="-1" aria-label="Marcar como cumplida"></span>'+
       '<i style="background:'+colorTipo(t)+'"></i><span class="tt">'+esc(t.titulo||'Nota de voz')+'</span>'+
       (pr?'<span style="color:var(--sub);font-weight:600;font-size:10.5px">'+esc(pr.nombre)+'</span>':'')+'</button>';
   }).join(''):'<span class="cd-libre">Sin tareas de todo el día.</span>';
   return '<div class="tar cal-dia-top"><div class="cd-head"><div class="cd-hl">'+
     '<span class="cd-dow">'+DIAS[d.getDay()]+'</span><b>'+d.getDate()+'</b><span class="cd-mon">'+MESE[d.getMonth()]+' '+d.getFullYear()+'</span></div>'+
+    '<button type="button" class="cg-add" data-agenda-dia="'+f+'" aria-label="Enviar la agenda del día por WhatsApp" title="Enviar la agenda del día por WhatsApp">📤</button>'+
     '<div class="cd-ring" style="--p:'+pct+'"><div class="in"><b>'+pct+'%</b><span>hecho</span></div></div></div>'+
     '<div class="cd-kpis"><span><b>'+pend+'</b> pendientes</span><span><b>'+hechas+'</b> cumplidas</span><span><b>'+(mins?fmtMin(mins):'—')+'</b> ocupadas</span></div></div>'+
     '<div class="tar cal-dia"><div class="cal-gh"><span class="cgd">Todo el día</span><span class="cgn">'+(sinHora.length?sinHora.length+' sin hora':'ninguna')+'</span>'+
@@ -2278,7 +2334,8 @@ function calAgendaHTML(){
   var v=S.ui.calVista||'mes';
   if(v==='dia')return calDiaHTML();
   if(v==='semana'){
-    var ini=calInicioSemana(calFechaActiva()),s2='<div class="tar cal-agenda">';
+    var ini=calInicioSemana(calFechaActiva()),s2='<div class="tar cal-agenda"><div class="cal-gh"><span class="cgd">Agenda de la semana</span>'+
+      '<button type="button" class="cg-add" data-agenda-sem="'+ini+'" aria-label="Enviar la agenda de la semana por WhatsApp" title="Enviar la agenda de la semana por WhatsApp">📤</button></div>';
     for(var i=0;i<7;i++)s2+=calGrupoHTML(sumar(ini,i),tareasDeDia(sumar(ini,i)),true);
     return s2+'</div>';
   }
@@ -2294,10 +2351,25 @@ function calAgendaHTML(){
     (s3||'<div class="cal-vacio"><div class="cv-i">🗓</div><b>Mes sin tareas</b><span>Toca un día del calendario para abrirlo y añadir tareas.</span></div>')+
     '</div>';
 }
+/* buscador de la agenda: filtra por título, nota y responsable; agrupa por fecha */
+function calBusquedaHTML(){
+  var q=(S.ui.calQ||'').toLowerCase().trim();
+  if(!q)return '';
+  var ts=U().tareas.filter(function(t){
+    if(esIndic(t))return false;
+    return (t.titulo||'').toLowerCase().indexOf(q)>=0||(t.nota||'').toLowerCase().indexOf(q)>=0||nomResp(t.principal).toLowerCase().indexOf(q)>=0;});
+  ts.sort(function(a,b){var fa=a.fecha||'9999',fb=b.fecha||'9999';return fa<fb?-1:1;});
+  if(!ts.length)return '<div class="vacio">Sin resultados para «'+esc(S.ui.calQ)+'».</div>';
+  var grupos={},orden=[];
+  ts.forEach(function(t){var f=t.fecha;if(!grupos[f]){grupos[f]=[];orden.push(f);}grupos[f].push(t);});
+  return orden.map(function(f){return calGrupoHTML(f,grupos[f],false);}).join('');
+}
 function vistaCalendario(){
   var v=S.ui.calVista||'mes';
   var cuerpo=v==='anio'?calAnioHTML():(v==='mes'?calMesHTML():calSemanaHTML());
-  var s='<div class="tar"><div class="cal-top" id="cal-top">'+calTituloHTML()+
+  var q=S.ui.calQ||'';
+  var s='<div class="tar tight" style="margin-bottom:10px"><input id="cal-q" type="text" placeholder="🔍 Buscar en la agenda…" value="'+esc(q)+'" style="margin:4px 0"></div>';
+  s+='<div id="cal-normal"'+(q?' style="display:none"':'')+'><div class="tar"><div class="cal-top" id="cal-top">'+calTituloHTML()+
     '<div class="cal-nav"><button type="button" id="cal-prev" aria-label="Periodo anterior">‹</button>'+
       '<button type="button" id="cal-hoy"'+(calEnHoy()?' disabled':'')+'>Hoy</button>'+
       '<button type="button" id="cal-next" aria-label="Periodo siguiente">›</button></div></div>'+
@@ -2306,6 +2378,8 @@ function vistaCalendario(){
       return '<button type="button" data-calv="'+x.v+'" class="'+(v===x.v?'on':'')+'">'+x.n+'</button>';}).join('')+
     '</div></div>';
   s+=calAgendaHTML();
+  s+='</div>';
+  s+='<div class="tar tight" id="cal-busca"'+(q?'':' style="display:none"')+'>'+(q?calBusquedaHTML():'')+'</div>';
   return s;
 }
 function calNav(dir){
@@ -2425,6 +2499,13 @@ function formHTML(){
         '<span class="pf-x">Cambiar ›</span></button>'+
       '<input id="f-fec" type="date" class="pick-native" tabindex="-1" aria-hidden="true" value="'+esc(UIf.fecha)+'">'+
       '<input id="f-hora" type="time" class="pick-native" tabindex="-1" aria-hidden="true" value="'+esc(UIf.hora)+'">'+
+      '<div class="pri-row"><span>Repetir</span><div class="pri-chips" id="f-rep">'+
+        '<button type="button" data-rep="" class="'+((UIf.rep||'')===''?'on':'')+'">Nunca</button>'+
+        '<button type="button" data-rep="diaria" class="'+(UIf.rep==='diaria'?'on':'')+'">🔁 Diaria</button>'+
+        '<button type="button" data-rep="semanal" class="'+(UIf.rep==='semanal'?'on':'')+'">🔁 Semanal</button>'+
+        '<button type="button" data-rep="mensual" class="'+(UIf.rep==='mensual'?'on':'')+'">🔁 Mensual</button></div></div>'+
+      '<p class="hint"'+(UIf.rep?'':' style="display:none"')+'>'+
+        'La tarea se repite en la agenda automáticamente. Al marcar una copia como cumplida, solo esa fecha queda hecha; la serie sigue.</p>'+
       '<p class="hint" id="f-fechint"'+(UIf.fecha?' style="display:none"':'')+'>Sin fecha se guarda como <b>indicación</b>: queda pendiente sin día concreto.</p>'+
       '<label class="switch" for="f-recon"><input type="checkbox" id="f-recon"'+(recOn?' checked':'')+'>'+
         '<span class="sw"></span><span class="sw-t">Añadir recordatorio<small>Un aviso extra para chequearla</small></span></label>'+
@@ -2545,6 +2626,12 @@ function vistaAyuda(){
   '<p>En la pestaña <b>👥 Responsables</b> (junto a Tareas) creas a las personas: <b>nombre</b>, <b>cargo</b>, <b>teléfono</b> para WhatsApp y, si quieres, una <b>foto</b> que se recorta en miniatura. Luego los eliges como responsable principal o participante de cada tarea.</p>'+
   '<p><b>📇 Traer de mis contactos:</b> con un toque rellena el nombre y el teléfono desde la agenda del móvil (hay que dar permiso a leer los contactos en <i>Ajustes → Contactos</i>).</p>'+
   '<p><b>Crear al vuelo:</b> dentro del formulario de tarea, «＋ Crear responsable nuevo aquí» abre un mini-formulario; al darle <i>Crear y asignar</i> la persona queda ya como responsable principal <b>sin perder lo que tenías escrito</b> en la tarea.</p>'+
+  '<h3>📅 Agenda</h3>'+
+  '<p>La Agenda tiene cuatro vistas: <b>Día</b> (línea de horas), <b>Semana</b>, <b>Mes</b> y <b>Año</b>. Arriba tienes un <b>buscador</b>: escribe parte del título, la nota o el responsable y verás los resultados agrupados por fecha.</p>'+
+  '<p>En la vista <b>Día</b>, cada tarea tiene un <b>check a la izquierda</b>: tócalo para marcarla como cumplida (o desmarcarla) sin abrir el formulario. También funciona en los chips de «Todo el día» y en las tarjetas de la agenda semanal y mensual.</p>'+
+  '<p>Los botones <b>📤</b> envían la agenda por WhatsApp como texto: el de la cabecera del día manda <b>el día</b> y el de la cabecera semanal manda <b>la semana completa</b> agrupada por días. Se envía a un responsable con teléfono (si hay varios, se elige a cuál).</p>'+
+  '<h3>🔁 Tareas que se repiten</h3>'+
+  '<p>En el formulario, en «¿Cuándo?», puedes elegir <b>Diaria</b>, <b>Semanal</b> o <b>Mensual</b>. La tarea aparece sola en la agenda cada día/semana/mes que toque, sin duplicar datos. Al marcar una copia como cumplida, <b>solo esa fecha</b> queda hecha y la serie continúa. Borrar la tarea madre termina la serie.</p>'+
   '<h3>✅ Cumplir sin borrar</h3>'+
   '<p>El check marca la tarea como <b>cumplida</b> (se tacha, queda en verde con su fecha). <b>No se elimina</b>; la ves en "Cumplidas". Tócala otra vez para desmarcar.</p>'+
   '<h3>🗑 Eliminar deslizando</h3>'+
@@ -2744,11 +2831,14 @@ function doGuardarForm(){
     if(t){t.titulo=titulo;t.nota=UIf.nota.trim();t.fecha=UIf.fecha;t.hora=UIf.hora;t.rec=UIf.rec;t.recHora=UIf.recHora;
       t.dur=UIf.dur||0;t.pri=UIf.pri||'normal';
       t.principal=UIf.principal;t.tipo=UIf.tipo;t.participantes=UIf.part.slice();
-      t.audio=UIf.audio||'';t.audioDur=UIf.audioDur||0;}
+      t.audio=UIf.audio||'';t.audioDur=UIf.audioDur||0;
+      t.rep=(UIf.fecha&&UIf.rep)?UIf.rep:'';
+      if(t.rep&&(typeof t.repHechas!=='object'||!t.repHechas))t.repHechas={};}
     toast('Tarea actualizada');
   }else{U().tareas.push({id:U().seq++,titulo:titulo,nota:UIf.nota.trim(),fecha:UIf.fecha,hora:UIf.hora,
       rec:UIf.rec,recHora:UIf.recHora,principal:UIf.principal,tipo:UIf.tipo,participantes:UIf.part.slice(),
       audio:UIf.audio||'',audioDur:UIf.audioDur||0,dur:UIf.dur||0,pri:UIf.pri||'normal',
+      rep:(UIf.fecha&&UIf.rep)?UIf.rep:'',repHechas:{},
       hecha:false,creada:hoyISO(),cumplida:''});
     toast('Tarea añadida');}
   resetForm();guardar();render();
@@ -2758,7 +2848,7 @@ function editar(id){
   cerrarOverlay();
   UIf={id:t.id,titulo:t.titulo,nota:t.nota||'',fecha:t.fecha||'',hora:t.hora||'',rec:t.rec||'',
     recHora:t.recHora||'',principal:t.principal||'',tipo:t.tipo||'mio',part:(t.participantes||[]).slice(),
-    audio:t.audio||'',audioDur:t.audioDur||0,dur:t.dur||0,pri:t.pri||'normal',respAbierto:false,respNombre:'',respCargo:'',respTel:''};
+    audio:t.audio||'',audioDur:t.audioDur||0,dur:t.dur||0,pri:t.pri||'normal',rep:t.rep||'',respAbierto:false,respNombre:'',respCargo:'',respTel:''};
   if(S.ui.vista!=='tareas')S.ui.vista='tareas';
   render();
   try{window.scrollTo(0,0);}catch(e){}
@@ -2894,6 +2984,43 @@ function hojaOpciones(titulo,opciones,nota){
 function compartirTarea(id){
   var t=porId(id);if(!t)return;
   compartirTareaObj(t);
+}
+/* enviar la agenda del día o de la semana por WhatsApp (texto) */
+function lineaAgenda(t){
+  var pr=respPorId(t.principal);
+  return '• '+(t.hora?t.hora+' ':'')+(t.titulo||'Nota de voz')+(pr?' → '+pr.nombre:'');
+}
+function textoAgendaDia(f){
+  var ts=tareasDeDia(f),pend=ts.filter(function(t){return !t.hecha;});
+  var l=['📅 Agenda del '+calDiaLbl(f)+(f===hoyISO()?' (hoy)':'')];
+  if(!pend.length)l.push('(sin tareas pendientes)');
+  pend.forEach(function(t){l.push(lineaAgenda(t));});
+  var hechas=ts.length-pend.length;
+  if(hechas)l.push('✔ '+hechas+' cumplida'+(hechas===1?'':'s'));
+  l.push('— Organizador de Tareas');
+  return l.join('\n');
+}
+function textoAgendaSemana(ini){
+  var l=['📅 Agenda de la semana ('+lindaCorta(ini)+' – '+lindaCorta(sumar(ini,6))+')'],hay=false;
+  for(var i=0;i<7;i++){
+    var f=sumar(ini,i),ts=tareasDeDia(f).filter(function(t){return !t.hecha;});
+    if(!ts.length)continue;hay=true;
+    l.push('');l.push('— '+calDiaLbl(f)+' —');
+    ts.forEach(function(t){l.push(lineaAgenda(t));});
+  }
+  if(!hay)l.push('(sin tareas pendientes)');
+  l.push('— Organizador de Tareas');
+  return l.join('\n');
+}
+function enviarAgendaTexto(txt){
+  var rs=U().responsables.filter(function(r){return (r.tel||'').trim();});
+  if(!rs.length){toast('Asigna un responsable con teléfono');return;}
+  if(!window.cdpNotificaciones||!cdpNotificaciones.whatsappTexto){toast('WhatsApp no disponible en este dispositivo');return;}
+  if(rs.length===1){cdpNotificaciones.whatsappTexto(rs[0].tel,txt,function(){toast('Abriendo WhatsApp…');},function(e){toast('Error: '+e);});return;}
+  hojaOpciones('¿A quién le envías la agenda?',rs.map(function(r){
+    return {t:r.nombre+' · '+r.tel,cb:function(){
+      cdpNotificaciones.whatsappTexto(r.tel,txt,function(){toast('Abriendo WhatsApp…');},function(e){toast('Error: '+e);});}};
+  }));
 }
 function tareaDesdeForm(){
   var t=porId(UIf.id)||{};
@@ -3394,7 +3521,7 @@ function initSwipe(q){
   (q||document).querySelectorAll('.swipe').forEach(function(w){
     if(w.__swipeOn)return;w.__swipeOn=true;
     var tarea=w.querySelector('.tarea'),prog=w.querySelector('.swipe-prog');
-    if(!tarea)return;
+    if(!tarea||!prog)return;
     var id=+w.getAttribute('data-id');
     var startX=0,startY=0,cur=0,max=1,active=false,drag=false,decided=false;
     function reset(){tarea.style.transform='translateX(0)';prog.style.width='0%';}
@@ -3440,7 +3567,9 @@ function enlazarTareas(q){
   (q||document).querySelectorAll('.tarea [data-a=toggle]').forEach(function(b){
     if(b.__ev)return;b.__ev=1;
     b.addEventListener('click',function(e){e.stopPropagation();
-      var t=porId(+b.closest('.swipe').getAttribute('data-id'));if(!t)return;
+      var w=b.closest('.swipe'),t=porId(+w.getAttribute('data-id'));if(!t)return;
+      var oc=w.getAttribute('data-oc')||'';
+      if(oc){toggleOcurrencia(t,oc);return;}
       if(t.hecha){t.hecha=false;t.cumplida='';guardar();render();toast('Desmarcada');return;}
       confirmar('Marcar como cumplida','¿Marcar «'+(t.titulo||'')+'» como cumplida? Se guardará con la fecha de hoy.',
         {icono:'✅',ic:'info',si:'Sí, cumplida',siCls:'ok'},function(ok){
@@ -3452,7 +3581,10 @@ function enlazarTareas(q){
   (q||document).querySelectorAll('.tarea [data-a=compartir]').forEach(function(b){
     if(b.__ev)return;b.__ev=1;
     b.addEventListener('click',function(e){e.stopPropagation();
-      compartirTarea(+b.closest('.swipe').getAttribute('data-id'));});});
+      var w=b.closest('.swipe'),t=porId(+w.getAttribute('data-id'));if(!t)return;
+      var oc=w.getAttribute('data-oc')||'';
+      if(oc){var c={};for(var k in t)c[k]=t[k];c.fecha=oc;c.hecha=ocHecha(t,oc);compartirTareaObj(c);return;}
+      compartirTareaObj(t);});});
   (q||document).querySelectorAll('.tarea [data-a=editar]').forEach(function(el){
     if(el.__ev)return;el.__ev=1;
     el.addEventListener('click',function(){ if(swipeSuprime)return;
@@ -3471,6 +3603,15 @@ function hojaTareas(titulo,ts,nota){
   $('ov-close').addEventListener('click',cerrarOverlay);
   var box=$('overlay').querySelector('.hoja-lista');
   enlazarTareas(box);initSwipe();
+}
+/* botones ＋ de la agenda: abren el formulario ya fechado (documento o caja aparte) */
+function enlazarAddDia(scope){
+  (scope||document).querySelectorAll('[data-add-dia]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var f=b.getAttribute('data-add-dia');
+      resetForm();UIf.fecha=f;S.ui.vista='tareas';guardar();render();
+      setTimeout(function(){var i=$('f-tit');if(i){try{i.focus();i.scrollIntoView({block:'center'});}catch(e){}}},60);
+    });});
 }
 /* eventos */
 function enlazar(){
@@ -3621,12 +3762,39 @@ function enlazar(){
       if((S.ui.calVista||'mes')==='dia'){S.ui.calFecha=f;guardar();render();try{window.scrollTo(0,0);}catch(e){}}
       else calAbrirDia(f);
     });});
-  document.querySelectorAll('[data-add-dia]').forEach(function(b){
-    b.addEventListener('click',function(){
-      var f=b.getAttribute('data-add-dia');
-      resetForm();UIf.fecha=f;S.ui.vista='tareas';guardar();render();
-      setTimeout(function(){var i=$('f-tit');if(i){try{i.focus();i.scrollIntoView({block:'center'});}catch(e){}}},60);
+  enlazarAddDia(document);
+  /* agenda: completar una tarea con un toque en el check */
+  document.querySelectorAll('[data-check]').forEach(function(b){
+    b.addEventListener('click',function(e){
+      e.stopPropagation();e.preventDefault();
+      var id=+b.getAttribute('data-check'),oc=b.getAttribute('data-oc')||'';
+      var t=porId(id);if(!t)return;
+      if(oc){toggleOcurrencia(t,oc);return;}
+      if(t.hecha){t.hecha=false;t.cumplida='';guardar();render();toast('Desmarcada');return;}
+      t.hecha=true;t.cumplida=hoyISO();guardar();render();toast('✔ Marcada como cumplida');
     });});
+  /* agenda: enviar el día o la semana por WhatsApp */
+  document.querySelectorAll('[data-agenda-dia]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var f=b.getAttribute('data-agenda-dia');enviarAgendaTexto(textoAgendaDia(f));});});
+  document.querySelectorAll('[data-agenda-sem]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var f=b.getAttribute('data-agenda-sem');enviarAgendaTexto(textoAgendaSemana(f));});});
+  /* agenda: buscador (filtra sin recargar la vista para no perder el foco) */
+  var cq=$('cal-q');
+  if(cq){
+    cq.addEventListener('input',function(){
+      S.ui.calQ=cq.value;
+      var q=(cq.value||'').trim(),norm=$('cal-normal'),bus=$('cal-busca');
+      if(!norm||!bus)return;
+      if(q){norm.style.display='none';bus.style.display='block';
+        bus.innerHTML=calBusquedaHTML();enlazarTareas(bus);initSwipe(bus);enlazarAddDia(bus);}
+      else{bus.style.display='none';bus.innerHTML='';norm.style.display='block';}
+    });
+  }
+  /* formulario: chips de repetición */
+  document.querySelectorAll('#f-rep [data-rep]').forEach(function(b){
+    b.addEventListener('click',function(){leerForm();UIf.rep=b.getAttribute('data-rep');render();});});
   /* agenda: abrir tarea o crear a una hora concreta */
   document.querySelectorAll('[data-tarea]').forEach(function(b){
     b.addEventListener('click',function(e){e.stopPropagation();editar(+b.getAttribute('data-tarea'));});
