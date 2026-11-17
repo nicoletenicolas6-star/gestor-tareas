@@ -564,16 +564,16 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pri);box
 .tl-filtros button{background:var(--chip);border:none;color:var(--txt);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
 .tl-filtros button.on{background:var(--pri);color:#fff}
 .tl{position:relative;border-radius:16px;overflow:hidden;box-shadow:var(--sombra);border:1px solid var(--bor);user-select:none;-webkit-user-select:none;touch-action:pan-y;cursor:ew-resize;background:#0b3b46}
-.tl .paisaje{display:block;width:100%;height:174px;position:relative;z-index:1}
+.tl .paisaje{display:block;width:100%;height:118px;position:relative;z-index:1}
 .tl .cielo{position:absolute;inset:0;z-index:0;background:linear-gradient(180deg,#B07CC6 0%,#F59E0B 46%,#5EB3BF 100%)}
 .tl .rango,.tl .play,.tl .eti,.tl .ticks{z-index:4}
 .tl .sol,.tl .luna,.tl .estrellas,.tl .luces{transition:opacity 1.2s linear}
 .tl .rango{position:absolute;top:0;bottom:0;background:rgba(30,90,232,.16);border-left:2px solid rgba(255,255,255,.75);border-right:2px solid rgba(255,255,255,.75);pointer-events:none;box-shadow:inset 0 0 22px rgba(0,0,0,.15)}
 /* histograma de tareas (estilo ¿Hay Luz?: barras por tramo de 15 min) */
-.tl .tl-histbg{position:absolute;left:0;right:0;bottom:22px;height:58px;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.42))}
-.tl .tl-hist{position:absolute;left:0;right:0;bottom:22px;height:58px;width:100%;z-index:2;pointer-events:none;overflow:visible}
+.tl .tl-histbg{position:absolute;left:0;right:0;bottom:22px;height:38px;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.42))}
+.tl .tl-hist{position:absolute;left:0;right:0;bottom:22px;height:38px;width:100%;z-index:2;pointer-events:none;overflow:visible}
 .tl .tl-hist rect{shape-rendering:crispEdges}
-.tl .tl-focus{position:absolute;bottom:22px;width:2px;height:58px;background:rgba(255,255,255,.9);z-index:3;pointer-events:none;box-shadow:0 0 8px rgba(0,0,0,.6)}
+.tl .tl-focus{position:absolute;bottom:22px;width:2px;height:38px;background:rgba(255,255,255,.9);z-index:3;pointer-events:none;box-shadow:0 0 8px rgba(0,0,0,.6)}
 .tl .tl-focus:before{content:"";position:absolute;top:-4px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(255,255,255,.9)}
 .tl .tl-now{position:absolute;top:0;bottom:22px;width:2px;background:rgba(255,224,130,.9);z-index:2;pointer-events:none;box-shadow:0 0 6px rgba(0,0,0,.5)}
 .tl .tl-now:after{content:"ahora";position:absolute;top:2px;left:5px;font-size:9px;font-weight:900;color:#FFE082;text-shadow:0 1px 3px rgba(0,0,0,.9);white-space:nowrap}
@@ -730,10 +730,9 @@ html[data-tema=oscuro] .stats .k{border-color:var(--bor)}
   opacity:0;transform:scale(.55);transition:opacity .15s,transform .15s;box-shadow:0 5px 12px -4px rgba(217,45,45,.8);z-index:3;
 }
 .stats.edit .k .k-del{opacity:1;transform:scale(1)}
-.stats.edit .k{animation:wiggleDash .3s ease-in-out infinite alternate}
-.stats.edit .k:nth-child(2n){animation-delay:.055s}
-.stats.edit .k:nth-child(3n){animation-delay:.11s}
-@keyframes wiggleDash{from{transform:rotate(-.55deg)}to{transform:rotate(.55deg)}}
+/* sin tembleque en modo edición: bastan la × y las flechas ‹ › para saber que se puede editar */
+.stats.edit .k{transition:box-shadow .15s ease}
+.stats.edit .k:active{box-shadow:0 0 0 2px var(--pri-soft)}
 .stats .k.wide{
   grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;grid-template-areas:"ic num" "ic lbl";
   column-gap:12px;align-items:center;padding:12px 14px;
@@ -825,13 +824,13 @@ nav.tab button:active{background:var(--chip)}
 
 /* ===== línea de tiempo: tarjeta ===== */
 .tl{box-shadow:0 1px 2px rgba(15,35,70,.05),0 22px 38px -26px rgba(15,23,42,.6)}
-.tl .paisaje{height:178px}
+.tl .paisaje{height:122px}
 .tl .grid{position:absolute;inset:0 0 22px;z-index:2;pointer-events:none;
   background:repeating-linear-gradient(90deg,rgba(255,255,255,.11) 0 1px,rgba(255,255,255,0) 1px 12.5%)}
-.tl .tl-histbg{bottom:22px;height:64px;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.5))}
-.tl .tl-hist{bottom:22px;height:64px}
+.tl .tl-histbg{bottom:22px;height:44px;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.5))}
+.tl .tl-hist{bottom:22px;height:44px}
 .tl .tl-hist rect{rx:.35}
-.tl .tl-focus{bottom:22px;height:64px}
+.tl .tl-focus{bottom:22px;height:44px}
 .tl .eti{bottom:28px;background:rgba(8,14,26,.66);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:4px 11px 5px;box-shadow:0 8px 18px -10px rgba(0,0,0,.9)}
 .tl .eti b{font-size:12px;letter-spacing:-.01em}
 .tl .eti span{font-size:9.5px;opacity:.8}
