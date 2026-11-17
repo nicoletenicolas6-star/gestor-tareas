@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.mitienda.pos.tareas" version="1.1.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>Gestor de Tareas</name>
+    <description>
+        Organizador de tareas personal: pendientes, vencimientos, recordatorios, notas de voz y línea de tiempo. 100% offline.
+    </description>
+    <author email="vibe@mistral.ai" href="https://github.com/nicoletenicolas6-star">
+        Vibe Nuage Agent
+    </author>
+    <content src="index.html" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-intent href="whatsapp:*" />
+    <icon src="res/icon.png" />
+
+    <preference name="AndroidXEnabled" value="true" />
+    <preference name="AndroidMinSdkVersion" value="24" />
+    <preference name="AndroidTargetSdkVersion" value="33" />
+    <preference name="SplashMaintainAspectRatio" value="true" />
+    <preference name="ShowSplashScreenSpinner" value="false" />
+</widget>
