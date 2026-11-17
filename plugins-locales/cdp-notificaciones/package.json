@@ -1,0 +1,10 @@
+{
+  "name": "cdp-notificaciones",
+  "version": "1.0.0",
+  "description": "Notificaciones locales programadas en el dispositivo; se disparan aunque la app este cerrada.",
+  "cordova": {
+    "id": "cdp-notificaciones",
+    "platforms": ["android"]
+  },
+  "keywords": ["notificaciones", "recordatorios", "alarmas", "cordova"]
+}

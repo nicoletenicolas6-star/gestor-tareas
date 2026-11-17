@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android" id="cdp-notificaciones" version="1.0.0">
+    <name>CdpNotificaciones</name>
+    <description>Notificaciones locales programadas con AlarmManager; se disparan aunque la app este cerrada.</description>
+    <license>Apache 2.0</license>
+    <keywords>tareas,recordatorios,alarmas,notificaciones</keywords>
+
+    <js-module src="www/notificaciones.js" name="Notificaciones">
+        <clobbers target="cdpNotificaciones" />
+    </js-module>
+
+    <platform name="android">
+        <config-file target="res/xml/config.xml" parent="/*">
+            <feature name="Notificaciones">
+                <param name="android-package" value="com.tareas.notif.Notificaciones" />
+            </feature>
+        </config-file>
+
+        <config-file target="AndroidManifest.xml" parent="/manifest">
+            <uses-permission android:name="android.permission.VIBRATE" />
+            <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+            <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+            <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+            <uses-permission android:name="android.permission.WAKE_LOCK" />
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+        </config-file>
+
+        <config-file target="AndroidManifest.xml" parent="/manifest/application">
+            <receiver android:name="com.tareas.notif.NotifReceiver" android:exported="false" />
+            <receiver android:name="com.tareas.notif.BootReceiver" android:exported="false">
+                <intent-filter>
+                    <action android:name="android.intent.action.BOOT_COMPLETED" />
+                </intent-filter>
+            </receiver>
+            <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.cdpnotif" android:exported="false" android:grantUriPermissions="true">
+                <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/cdp_notif_paths" />
+            </provider>
+        </config-file>
+
+        <resource-file src="src/android/cdp_notif_paths.xml" target="res/xml/cdp_notif_paths.xml" />
+
+        <source-file src="src/android/Notificaciones.java" target-dir="src/com/tareas/notif" />
+        <source-file src="src/android/NotifReceiver.java" target-dir="src/com/tareas/notif" />
+        <source-file src="src/android/BootReceiver.java" target-dir="src/com/tareas/notif" />
+    </platform>
+</plugin>

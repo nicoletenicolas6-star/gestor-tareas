@@ -1,0 +1,10 @@
+{
+  "name": "cdp-contactos",
+  "version": "1.0.0",
+  "description": "Lee los contactos del movil (nombre y telefono) para crear responsables de un toque.",
+  "cordova": {
+    "id": "cdp-contactos",
+    "platforms": ["android"]
+  },
+  "keywords": ["contactos", "agenda", "responsables", "cordova"]
+}
