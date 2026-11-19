@@ -3,6 +3,8 @@ package com.tareas.notif;
 import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -10,6 +12,7 @@ import android.content.pm.PackageManager;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Build;
+import android.provider.CalendarContract;
 import android.provider.Settings;
 import android.util.Base64;
 
@@ -36,6 +39,7 @@ public class Notificaciones extends CordovaPlugin {
     private static final String KEY = "pend";
     private static final int REQ_NOTIF = 1;
     private static final int REQ_MIC = 2;
+    private static final int REQ_CAL = 3;
     private CallbackContext permCb;
     private CallbackContext tocarCb;
     private int avisoTarea = 0;
@@ -187,6 +191,87 @@ public class Notificaciones extends CordovaPlugin {
             cordova.requestPermission(this, REQ_MIC, Manifest.permission.RECORD_AUDIO);
             return true;
         }
+        if ("calPermisos".equals(accion)) {
+            Context ctx = cordova.getContext();
+            boolean lee = ctx.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED;
+            boolean escribe = ctx.checkSelfPermission(Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED;
+            if (!lee || !escribe) {
+                permCb = cb;
+                cordova.requestPermissions(this, REQ_CAL, new String[]{
+                        Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR});
+            } else cb.success("otorgado");
+            return true;
+        }
+        if ("calInsertar".equals(accion)) {
+            final JSONObject ev = args.getJSONObject(0);
+            cordova.getThreadPool().execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        Context ctx = cordova.getContext();
+                        if (ctx.checkSelfPermission(Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED)
+                            throw new Exception("sin permiso de calendario");
+                        android.content.ContentResolver cr = ctx.getContentResolver();
+                        long calId = calendarioElegido(cr);
+                        ContentValues v = new ContentValues();
+                        v.put(CalendarContract.Events.CALENDAR_ID, calId);
+                        v.put(CalendarContract.Events.TITLE, ev.optString("titulo"));
+                        String desc = ev.optString("desc");
+                        if (desc.length() > 0) v.put(CalendarContract.Events.DESCRIPTION, desc);
+                        String zona = java.util.TimeZone.getDefault().getID();
+                        long ini = inicioDia(ev.optString("fecha"));
+                        if (ev.optBoolean("allDay", false)) {
+                            v.put(CalendarContract.Events.ALL_DAY, 1);
+                            v.put(CalendarContract.Events.DTSTART, ini);
+                            v.put(CalendarContract.Events.DTEND, ini + 86400000L);
+                        } else {
+                            ini += horaMs(ev.optString("hora"));
+                            long dur = ev.optLong("durMin", 60);
+                            if (dur < 5) dur = 5;
+                            v.put(CalendarContract.Events.DTSTART, ini);
+                            v.put(CalendarContract.Events.DTEND, ini + dur * 60000L);
+                        }
+                        v.put(CalendarContract.Events.EVENT_TIMEZONE, zona);
+                        /* marca: sabemos después qué eventos creó esta app y no los reimportamos */
+                        v.put(CalendarContract.Events.CUSTOM_APP_PACKAGE, ctx.getPackageName());
+                        Uri uri = cr.insert(CalendarContract.Events.CONTENT_URI, v);
+                        if (uri == null) throw new Exception("no se pudo crear el evento");
+                        cb.success(ContentUris.parseId(uri));
+                    } catch (Throwable e) { cb.error(msg(e)); }
+                }
+            });
+            return true;
+        }
+        if ("calBorrar".equals(accion)) {
+            final long evId = args.getLong(0);
+            cordova.getThreadPool().execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        Context ctx = cordova.getContext();
+                        if (ctx.checkSelfPermission(Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED)
+                            throw new Exception("sin permiso de calendario");
+                        int n = ctx.getContentResolver().delete(
+                                ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, evId), null, null);
+                        cb.success(n > 0 ? "ok" : "no encontrado");
+                    } catch (Throwable e) { cb.error(msg(e)); }
+                }
+            });
+            return true;
+        }
+        if ("calEventos".equals(accion)) {
+            final long desde = args.getLong(0);
+            final long hasta = args.getLong(1);
+            cordova.getThreadPool().execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        Context ctx = cordova.getContext();
+                        if (ctx.checkSelfPermission(Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED)
+                            throw new Exception("sin permiso de calendario");
+                        cb.success(calEventos(ctx, desde, hasta));
+                    } catch (Throwable e) { cb.error(msg(e)); }
+                }
+            });
+            return true;
+        }
         if ("estado".equals(accion)) {
             cordova.getThreadPool().execute(new Runnable() {
                 @Override public void run() {
@@ -277,12 +362,121 @@ public class Notificaciones extends CordovaPlugin {
         CallbackContext cb = permCb;
         permCb = null;
         if (cb == null) return;
-        boolean ok = grantResults.length > 0 && grantResults[0] == 0;
+        boolean ok = grantResults.length > 0;
+        if (requestCode == REQ_CAL) {
+            for (int r : grantResults) {
+                if (r != PackageManager.PERMISSION_GRANTED) { ok = false; break; }
+            }
+        } else {
+            ok = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        }
         cb.success(ok ? "otorgado" : "denegado");
     }
 
     private static String msg(Throwable e) {
         return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+    }
+
+    /* calendario */
+
+    /** elige el calendario visible con permiso de escritura, priorizando el primario; -1 si no hay */
+    private static long calendarioElegido(android.content.ContentResolver cr) throws Exception {
+        if (Build.VERSION.SDK_INT < 14) throw new Exception("calendario no disponible");
+        android.database.Cursor c = null;
+        try {
+            c = cr.query(CalendarContract.Calendars.CONTENT_URI,
+                    new String[]{CalendarContract.Calendars._ID,
+                            CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL},
+                    CalendarContract.Calendars.VISIBLE + "=1", null,
+                    CalendarContract.Calendars.IS_PRIMARY + " DESC");
+            if (c != null) {
+                while (c.moveToNext()) {
+                    if (c.getInt(1) >= CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR) {
+                        long id = c.getLong(0);
+                        return id;
+                    }
+                }
+            }
+        } finally {
+            if (c != null) c.close();
+        }
+        throw new Exception("no hay calendario disponible");
+    }
+
+    /** milisegundos de la medianoche local de una fecha YYYY-MM-DD */
+    private static long inicioDia(String fecha) {
+        int y = 2000, m = 1, d = 1;
+        try {
+            String[] p = fecha.split("-");
+            y = Integer.parseInt(p[0]); m = Integer.parseInt(p[1]); d = Integer.parseInt(p[2]);
+        } catch (Throwable ignored) { }
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        c.clear();
+        c.set(y, m - 1, d);
+        return c.getTimeInMillis();
+    }
+
+    /** milisegundos de una hora HH:MM local (0 si viene vacia o invalida) */
+    private static long horaMs(String hora) {
+        try {
+            String[] p = hora.split(":");
+            return (Long.parseLong(p[0]) * 60L + Long.parseLong(p[1])) * 60000L;
+        } catch (Throwable e) { return 0; }
+    }
+
+    private static JSONArray calEventos(Context ctx, long desde, long hasta) throws Exception {
+        android.content.ContentResolver cr = ctx.getContentResolver();
+        Uri.Builder b = CalendarContract.Instances.CONTENT_URI.buildUpon();
+        ContentUris.appendId(b, desde);
+        ContentUris.appendId(b, hasta);
+        String[] projConMarca = new String[]{CalendarContract.Instances.EVENT_ID,
+                CalendarContract.Instances.TITLE,
+                CalendarContract.Instances.DESCRIPTION,
+                CalendarContract.Instances.ALL_DAY,
+                CalendarContract.Instances.BEGIN,
+                CalendarContract.Instances.CUSTOM_APP_PACKAGE};
+        String[] projBase = new String[]{CalendarContract.Instances.EVENT_ID,
+                CalendarContract.Instances.TITLE,
+                CalendarContract.Instances.DESCRIPTION,
+                CalendarContract.Instances.ALL_DAY,
+                CalendarContract.Instances.BEGIN};
+        String orden = CalendarContract.Instances.BEGIN + " ASC";
+        android.database.Cursor c;
+        boolean conMarca = true;
+        try { c = cr.query(b.build(), projConMarca, null, null, orden); }
+        catch (Throwable e) { c = cr.query(b.build(), projBase, null, null, orden); conMarca = false; }
+        JSONArray res = new JSONArray();
+        String paq = ctx.getPackageName();
+        try {
+            if (c != null) {
+                while (c.moveToNext()) {
+                    JSONObject o = new JSONObject();
+                    o.put("evId", String.valueOf(c.getLong(0)));
+                    o.put("titulo", c.getString(1) == null ? "" : c.getString(1));
+                    o.put("desc", c.getString(2) == null ? "" : c.getString(2));
+                    boolean todo = c.getInt(3) != 0;
+                    long ini = c.getLong(4);
+                    boolean mio = false;
+                    if (conMarca) {
+                        String cmp = c.getString(5);
+                        mio = cmp != null && cmp.length() > 0 && paq.equals(cmp);
+                    }
+                    o.put("allDay", todo);
+                    o.put("inicio", ini);
+                    o.put("mio", mio);
+                    java.util.Calendar cal = java.util.Calendar.getInstance();
+                    cal.setTimeInMillis(ini);
+                    o.put("fecha", String.format("%04d-%02d-%02d", cal.get(java.util.Calendar.YEAR),
+                            cal.get(java.util.Calendar.MONTH) + 1, cal.get(java.util.Calendar.DAY_OF_MONTH)));
+                    if (!todo) o.put("hora", String.format("%02d:%02d",
+                            cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE)));
+                    res.put(o);
+                }
+            }
+        } finally {
+            if (c != null) c.close();
+        }
+        return res;
     }
 
     private static String normalizarTel(String tel) {

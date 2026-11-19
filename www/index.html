@@ -543,6 +543,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pri);box
 .fab:active{transform:scale(.94)}
 @media(min-width:760px){.fab{right:calc((100% - min(960px,100%))/2 + 20px)}}
 /* colores configurables */
+/* pestañas de Ajustes */
+.aj-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.aj-tabs::-webkit-scrollbar{display:none}
+.aj-tabs button{flex:0 0 auto;background:var(--chip);border:1px solid var(--bor);color:var(--sub);border-radius:999px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:800;line-height:1;white-space:nowrap;transition:background .15s ease,color .15s ease}
+.aj-tabs button.on{background:var(--pri);border-color:var(--pri);color:#fff}
+
 .colo-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--bor)}
 .colo-row:last-child{border-bottom:none}
 .colo-row .nm{flex:1;font-weight:700;font-size:14px}
@@ -730,8 +736,13 @@ html[data-tema=oscuro] .stats .k{border-color:var(--bor)}
   opacity:0;transform:scale(.55);transition:opacity .15s,transform .15s;box-shadow:0 5px 12px -4px rgba(217,45,45,.8);z-index:3;
 }
 .stats.edit .k .k-del{opacity:1;transform:scale(1)}
-/* sin tembleque en modo edición: bastan la × y las flechas ‹ › para saber que se puede editar */
-.stats.edit .k{transition:box-shadow .15s ease}
+/* tembleque en modo edición (para saber que se pueden quitar/mover) */
+.stats.edit .k{animation:wiggleDash .3s ease-in-out infinite alternate}
+.stats.edit .k:nth-child(2n){animation-delay:.055s}
+.stats.edit .k:nth-child(3n){animation-delay:.11s}
+@keyframes wiggleDash{from{transform:rotate(-.55deg)}to{transform:rotate(.55deg)}}
+/* mientras se arrastra una tarjeta se pausa el tembleque: es lo que hacía parpadear al moverla */
+.stats.reordenando .k{animation:none !important}
 .stats.edit .k:active{box-shadow:0 0 0 2px var(--pri-soft)}
 .stats .k.wide{
   grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;grid-template-areas:"ic num" "ic lbl";
@@ -808,7 +819,7 @@ nav.tab button:active{background:var(--chip)}
 /* ===== tarjetas del resumen: salida animada y arrastre para reordenar ===== */
 .stats .k.saliendo{opacity:0;transform:scale(.84) !important;animation:none !important;transition:opacity .16s ease,transform .16s ease}
 .stats.edit .k{touch-action:none;cursor:grab}
-.stats .k.dragging{opacity:.92;transform:scale(1.03) !important;animation:none !important;z-index:6;cursor:grabbing;box-shadow:0 20px 34px -16px rgba(15,23,42,.55)}
+.stats .k.dragging{opacity:.95;animation:none !important;z-index:6;cursor:grabbing;box-shadow:0 20px 34px -16px rgba(15,23,42,.55)}
 .stats.reordenando .k:not(.dragging){transition:transform .14s ease}
 
 /* ===== línea de tiempo: cabecera compacta ===== */
@@ -1234,6 +1245,7 @@ function cargar(){
   if(S.densidad===undefined)S.densidad='comoda';
   if(S.radio===undefined)S.radio='redondo';
   if(S.texto===undefined)S.texto='normal';
+  if(S.calSync===undefined)S.calSync=false;
   if(S.motion===undefined)S.motion=true;
   if(['completa','compacta','oculta'].indexOf(S.tlModo)<0)S.tlModo='completa';
   if(!S.colores)S.colores={};
@@ -1264,12 +1276,16 @@ function cargar(){
       if(t.creada===undefined)t.creada='';
       if(t.rep===undefined)t.rep='';
       if(t.rep&&['diaria','semanal','mensual'].indexOf(t.rep)<0)t.rep='';
-      if(t.rep&&(typeof t.repHechas!=='object'||!t.repHechas))t.repHechas={};});
+      if(t.rep&&(typeof t.repHechas!=='object'||!t.repHechas))t.repHechas={};
+      if(t.calEv===undefined)t.calEv='';
+      if(t.calUpd===undefined)t.calUpd='';
+      if(t.calImp===undefined)t.calImp=0;});
   });
 }
 function guardar(){
   try{localStorage.setItem(K,JSON.stringify(S));}catch(e){toast('No se pudo guardar: '+e.message);}
   syncNotif();
+  syncCal();
 }
 function $(id){return document.getElementById(id);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -1368,6 +1384,90 @@ function syncNotif(){
     if(t.fecha)arr.push({id:t.id*10+2,titulo:'📅 Tarea',texto:t.titulo+' · '+linda(t.fecha)+' '+(t.hora||'09:00'),ts:tsOf(t.fecha,t.hora||'09:00')});
   });
   try{window.cdpNotificaciones.sincronizar(arr,function(){window.__syncErr='';},function(e){window.__syncErr=String(e);console.log('syncNotif',e);});}catch(e){window.__syncErr=String(e);}
+}
+/* calendario del telefono: puente entre la app y Muse (u otras apps).
+   App-Calendario: cada tarea con fecha se copia como evento (toggle en Ajustes-Avisos);
+   Calendario-App: boton 📥 de la Agenda trae eventos como tareas. Los eventos creados por la app
+   llevan la marca CUSTOM_APP_PACKAGE y no se reimportan. */
+function calLibre(){return !!(window.cdpNotificaciones&&cdpNotificaciones.calInsertar&&cdpNotificaciones.calEventos&&cdpNotificaciones.calBorrar);}
+function calChk(t){return [t.titulo||'',t.fecha||'',t.hora||'',t.nota||''].join('\u0001');}
+function guardadoCrudo(){try{localStorage.setItem(K,JSON.stringify(S));}catch(e){}syncNotif();}
+var calSyncEnMarcha=false;
+function syncCal(forzar){
+  if(calSyncEnMarcha||!S||!S.sesion)return;
+  if(!forzar&&!S.calSync)return;
+  if(!calLibre())return;
+  var lista=U().tareas.filter(function(t){return t.fecha&&!t.hecha&&!t.calImp;}).map(function(t){
+    return {t:t,chk:calChk(t)};
+  }).filter(function(x){return !x.t.calEv||x.t.calUpd!==x.chk;});
+  if(!lista.length)return;
+  calSyncEnMarcha=true;
+  cdpNotificaciones.calPermisos(function(p){
+    if(p!=='otorgado'){calSyncEnMarcha=false;return;}
+    var quedan=lista.length,cambio=false,fallo=false;
+    var paso=function(){quedan--;if(quedan<=0){calSyncEnMarcha=false;if(fallo)toast('Algunas tareas no se copiaron al calendario');if(cambio)guardadoCrudo();}};
+    lista.forEach(function(x){
+      var t=x.t,chk=x.chk;
+      var meter=function(){
+        cdpNotificaciones.calInsertar({titulo:(t.hora?t.hora+' ':'')+(t.titulo||'Tarea'),desc:t.nota||'',fecha:t.fecha,hora:t.hora,allDay:!t.hora,durMin:60},
+          function(ev){t.calEv=String(ev);t.calUpd=chk;cambio=true;paso();},
+          function(){fallo=true;paso();});
+      };
+      if(t.calEv){cdpNotificaciones.calBorrar(t.calEv,function(){meter();},function(){meter();});}
+      else meter();
+    });
+  },function(){calSyncEnMarcha=false;});
+}
+function actualizaEstadoCal(){
+  var el=$('cal-estado');if(!el)return;
+  if(!calLibre()){el.textContent='📅 El calendario no está disponible en este dispositivo';el.style.color='var(--sub)';return;}
+  cdpNotificaciones.calPermisos(function(p){
+    var tot=U().tareas.filter(function(t){return t.fecha&&!t.hecha&&!t.calImp;}).length;
+    var n=U().tareas.filter(function(t){return t.fecha&&!t.hecha&&!t.calImp&&t.calEv;}).length;
+    el.textContent=S.calSync?('📅 Copiando al calendario · '+n+' de '+tot+' tareas con evento'+(p==='otorgado'?'':' · falta dar permiso')):'📅 Copia al calendario desactivada';
+    el.style.color=p==='otorgado'?'':'#c0392b';
+  },function(){el.textContent='📅 El calendario no está disponible en este dispositivo';el.style.color='var(--sub)';});
+}
+/* Calendario-App: hoja con los eventos de los proximos 21 dias; al tocar uno se crea la tarea */
+function importarCal(){
+  if(!calLibre()){toast('El calendario no está disponible en este dispositivo');return;}
+  cdpNotificaciones.calPermisos(function(p){
+    if(p!=='otorgado'){toast('Sin permiso de calendario');return;}
+    carga('Leyendo el calendario…',6000);
+    var desde=Date.now()-6*3600000,hasta=desde+21*86400000;
+    cdpNotificaciones.calEventos(desde,hasta,function(evts){
+      cargaOff();
+      importarCalHoja((evts||[]).filter(function(e){return !e.mio;}).slice(0,60));
+    },function(e){cargaOff();toast('No se pudo leer el calendario: '+e);});
+  },function(){toast('Sin permiso de calendario');});
+}
+function importarCalHoja(evts){
+  var ya={};U().tareas.forEach(function(t){if(t.calEv)ya[String(t.calEv)]=1;});
+  var l=['<div class="overlay" role="dialog" aria-modal="true"><div class="sheet"><div class="grab"></div><h3>📥 Traer del calendario</h3>'+
+    '<p class="hoja-nota">Eventos de las próximas 3 semanas (por ejemplo, los que agende Muse). Los ya importados se marcan con ✔.</p>'];
+  if(!evts.length)l.push('<p style="color:var(--sub);font-size:13px;margin:8px 0">No hay eventos en ese periodo.</p>');
+  l.push('<div style="max-height:46vh;overflow:auto;margin-top:6px">');
+  evts.forEach(function(e,i){
+    var imp=ya[String(e.evId)];
+    l.push('<button class="btn '+(imp?'sec':'')+'" data-imp="'+i+'" style="margin-top:8px;width:100%;text-align:left'+(imp?';opacity:.55':'')+'">'+
+      (imp?'✔ ':'')+esc(e.titulo||'(sin título)')+'<br><span style="font-size:11.5px;color:var(--sub)">'+esc(calDiaLbl(e.fecha||''))+
+      (e.hora?' · '+esc(e.hora):' · todo el día')+'</span></button>');
+  });
+  l.push('</div><button class="btn sec" id="ov-close" style="margin-top:10px">Cerrar</button></div></div>');
+  $('overlay').innerHTML=l.join('');
+  var ov=document.querySelector('.overlay');if(ov)ov.addEventListener('click',function(ev){if(ev.target===this)cerrarOverlay();});
+  $('ov-close').addEventListener('click',cerrarOverlay);
+  document.querySelectorAll('[data-imp]').forEach(function(b){
+    b.addEventListener('click',function(){var e=evts[+b.getAttribute('data-imp')];if(!e)return;cerrarOverlay();crearTareaDeEvento(e);});});
+}
+function crearTareaDeEvento(e){
+  var u=U();
+  if(u.tareas.some(function(t){return String(t.calEv||'')===String(e.evId);}))return;
+  u.tareas.push({id:u.seq++,titulo:e.titulo||'Evento',nota:e.desc||'',fecha:e.fecha||hoyISO(),hora:e.allDay?'':(e.hora||''),
+    rec:'',recHora:'',principal:'',tipo:'mio',participantes:[],audio:'',audioDur:0,dur:0,pri:'normal',
+    rep:'',repHechas:{},hecha:false,creada:hoyISO(),cumplida:'',calEv:String(e.evId),calUpd:'',calImp:1});
+  guardar();render();
+  toast('📅 «'+(e.titulo||'Evento')+'» añadida a tus tareas');
 }
 /* red de seguridad en primer plano: si la alarma nativa falla, el aviso sale igual
    con la app abierta (mismo id de notificación → no se duplica con la alarma) */
@@ -2367,7 +2467,8 @@ function vistaCalendario(){
   var v=S.ui.calVista||'mes';
   var cuerpo=v==='anio'?calAnioHTML():(v==='mes'?calMesHTML():calSemanaHTML());
   var q=S.ui.calQ||'';
-  var s='<div class="tar tight" style="margin-bottom:10px"><input id="cal-q" type="text" placeholder="🔍 Buscar en la agenda…" value="'+esc(q)+'" style="margin:4px 0"></div>';
+  var s='<div class="tar tight" style="margin-bottom:10px;display:flex;align-items:center;gap:8px"><input id="cal-q" type="text" placeholder="🔍 Buscar en la agenda…" value="'+esc(q)+'" style="margin:4px 0;flex:1;min-width:0">'+
+    '<button type="button" id="cal-import" class="cal-hoy" style="flex-shrink:0;padding:6px 10px" title="Traer eventos del calendario del teléfono (por ejemplo, los que agende Muse) y convertirlos en tareas" aria-label="Traer del calendario">📥</button></div>';
   s+='<div id="cal-normal"'+(q?' style="display:none"':'')+'><div class="tar"><div class="cal-top" id="cal-top">'+calTituloHTML()+
     '<div class="cal-nav"><button type="button" id="cal-prev" aria-label="Periodo anterior">‹</button>'+
       '<button type="button" id="cal-hoy"'+(calEnHoy()?' disabled':'')+'>Hoy</button>'+
@@ -2686,34 +2787,45 @@ function refrescarVista(){
   render();
   try{window.scrollTo(0,y);}catch(e){}
 }
+/* pestañas de Ajustes: cada temática tiene su propia pestaña */
+var AJ_TABS=[['apariencia','🎨','Apariencia'],['avisos','🔔','Avisos'],['resumen','📊','Vista Hoy'],['datos','💾','Datos'],['cuenta','👤','Cuenta']];
+function ajTabsHTML(act){
+  return '<div class="aj-tabs" role="tablist">'+AJ_TABS.map(function(t){
+    return '<button type="button" role="tab" data-ajtab="'+t[0]+'" aria-selected="'+(act===t[0])+'" class="'+(act===t[0]?'on':'')+'">'+t[1]+' '+t[2]+'</button>';
+  }).join('')+'</div>';
+}
 function vistaAjustes(){
-  var u=U();
+  var u=U(),tab=S.ui.ajTab||'apariencia';
   var colRows=Object.keys(TIPOS).map(function(k){
     return '<div class="colo-row"><span class="nm">'+TIPOS[k].n+'</span>'+
       '<input type="color" data-col="'+k+'" value="'+colTipo(k)+'" aria-label="Color de '+TIPOS[k].n+'"></div>';
   }).join('');
-  return aparienciaHTML()+
-    '<h2 class="sec">Cuenta</h2><div class="tar" style="display:flex;align-items:center;gap:12px">'+
-    '<span class="avatar" style="width:46px;height:46px;font-size:19px;border-radius:14px;background:var(--pri)">'+esc(inicial(S.sesion))+'</span>'+
-    '<div><div style="font-weight:800;font-size:17px">'+esc(S.sesion)+'</div>'+
-    '<div style="font-size:12.5px;color:var(--sub)">'+u.tareas.length+' tareas · '+u.responsables.length+' responsables</div></div></div>'+
-    '<button class="btn sec" id="a-irresp" style="margin-top:10px">👥 Ir a Responsables</button>'+
-    '<h2 class="sec">🎨 Colores de los tipos de tarea</h2><div class="tar">'+
-    '<p style="font-size:12.5px;color:var(--sub);margin:2px 0 6px">Personaliza el color con el que se muestra cada tipo en toda la app.</p>'+
-    colRows+'</div>'+
-    '<h2 class="sec">🔔 Notificaciones en segundo plano</h2><div class="tar" id="notif-box">'+
-    '<p style="font-size:13px;color:var(--sub);margin:2px 0 8px">Avisos del sistema para fechas y horas de tus tareas, <b>aunque la app esté cerrada</b>.</p>'+
-    '<div id="notif-estado" style="font-size:13px;font-weight:700;margin-bottom:10px">Comprobando permisos…</div>'+
-    '<button class="btn sec" id="a-perm">🔔 Activar avisos</button>'+
-    '<button class="btn sec" id="a-micro">🎤 Activar micrófono</button>'+
-    '<button class="btn sec" id="a-alarmas">⏰ Permitir alarmas exactas</button>'+
-    '<button class="btn sec" id="a-probar">🔔 Probar notificación</button>'+
-    '<div id="notif-diag" style="font-size:12px;color:var(--sub);margin-top:10px"></div></div>'+
-    '<h2 class="sec">📇 Contactos del móvil</h2><div class="tar">'+
-    '<p style="font-size:13px;color:var(--sub);margin:2px 0 8px">Permite leer tu agenda para crear responsables de un toque: se rellenan el nombre y el teléfono.</p>'+
-    '<div id="ct-estado" style="font-size:13px;font-weight:700;margin-bottom:10px">Comprobando…</div>'+
-    '<button class="btn sec" id="a-ctperm">📇 Activar lectura de contactos</button></div>'+
-    '<h2 class="sec">📊 Dashboard</h2><div class="tar">'+
+  var secciones={
+    apariencia: aparienciaHTML()+
+      '<h2 class="sec">🎨 Colores de los tipos de tarea</h2><div class="tar">'+
+      '<p style="font-size:12.5px;color:var(--sub);margin:2px 0 6px">Personaliza el color con el que se muestra cada tipo en toda la app.</p>'+
+      colRows+'</div>',
+    avisos: '<h2 class="sec">🔔 Notificaciones en segundo plano</h2><div class="tar" id="notif-box">'+
+      '<p style="font-size:13px;color:var(--sub);margin:2px 0 8px">Avisos del sistema para fechas y horas de tus tareas, <b>aunque la app esté cerrada</b>.</p>'+
+      '<div id="notif-estado" style="font-size:13px;font-weight:700;margin-bottom:10px">Comprobando permisos…</div>'+
+      '<button class="btn sec" id="a-perm">🔔 Activar avisos</button>'+
+      '<button class="btn sec" id="a-micro">🎤 Activar micrófono</button>'+
+      '<button class="btn sec" id="a-alarmas">⏰ Permitir alarmas exactas</button>'+
+      '<button class="btn sec" id="a-probar">🔔 Probar notificación</button>'+
+      '<div id="notif-diag" style="font-size:12px;color:var(--sub);margin-top:10px"></div></div>'+
+      '<h2 class="sec">📇 Contactos del móvil</h2><div class="tar">'+
+      '<p style="font-size:13px;color:var(--sub);margin:2px 0 8px">Permite leer tu agenda para crear responsables de un toque: se rellenan el nombre y el teléfono.</p>'+
+      '<div id="ct-estado" style="font-size:13px;font-weight:700;margin-bottom:10px">Comprobando…</div>'+
+      '<button class="btn sec" id="a-ctperm">📇 Activar lectura de contactos</button></div>'+
+      '<h2 class="sec">📅 Calendario del teléfono</h2><div class="tar">'+
+      '<p style="font-size:13px;color:var(--sub);margin:2px 0 8px">Conecta tu agenda con el calendario del móvil: tus tareas con fecha aparecen como eventos del calendario, y los eventos que agende Muse (o cualquier otra app) puedes traerlos aquí con 📥. Todo queda en el teléfono, sin internet.</p>'+
+      '<div id="cal-estado" style="font-size:13px;font-weight:700;margin-bottom:10px">Comprobando…</div>'+
+      '<label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer">'+
+        '<input type="checkbox" id="a-calsync" '+(S.calSync?'checked':'')+' style="width:20px;height:20px;accent-color:var(--pri)">'+
+        '<span style="font-weight:700">Copiar tareas al calendario</span></label>'+
+      '<button class="btn sec" id="a-calsyn">🔄 Sincronizar ahora</button>'+
+      '<button class="btn sec" id="a-calimp">📥 Traer del calendario</button></div>',
+    resumen: '<h2 class="sec">📊 Dashboard</h2><div class="tar">'+
       '<div class="ap-bloque"><div class="ap-lbl">Plantilla rápida</div><div class="seg">'+
         '<button type="button" data-preset="personal">🙋 Personal</button>'+
         '<button type="button" data-preset="jefe">🧑‍💼 Jefe</button>'+
@@ -2732,12 +2844,22 @@ function vistaAjustes(){
             '<span class="k-del" data-dash-del="'+k+'" title="Quitar tarjeta" aria-label="Quitar">×</span>'+
             '<b>1</b><span><span class="k-ico">'+DASH_DEFS[k].ico+'</span>'+DASH_DEFS[k].lbl+'</span>'+
             '<input type="checkbox" data-dash-cfg="'+k+'" '+(on?'checked':'')+' style="margin-left:auto;width:auto;accent-color:var(--pri)"></div>';
-        }).join('')+'</div>'+
-      '</div>'+
-    '<h2 class="sec">Datos de '+esc(S.sesion)+'</h2><div class="tar">'+
-    '<p style="font-size:13px;color:var(--sub);margin:2px 0 6px">Exporta tus tareas eligiendo la carpeta del dispositivo donde guardarlas.</p>'+
-    '<button class="btn sec" id="a-exp">📤 Exportar y elegir carpeta</button>'+
-    '<button class="btn sec" id="a-imp">📥 Importar tareas</button></div>'+
+        }).join('')+'</div></div>'+
+      '<div class="ap-bloque"><div class="ap-lbl">Agenda</div><div class="seg">'+
+        '<button type="button" data-calgoto="cal">📅 Abrir Agenda</button>'+
+        '<button type="button" data-calgoto="stats">📊 Estadísticas</button></div>'+
+        '<p class="ap-hint">Accesos rápidos: la vista Agenda también está en la barra inferior (🗓).</p></div>',
+    datos: '<h2 class="sec">Datos de '+esc(S.sesion)+'</h2><div class="tar">'+
+      '<p style="font-size:13px;color:var(--sub);margin:2px 0 6px">Exporta tus tareas eligiendo la carpeta del dispositivo donde guardarlas.</p>'+
+      '<button class="btn sec" id="a-exp">📤 Exportar y elegir carpeta</button>'+
+      '<button class="btn sec" id="a-imp">📥 Importar tareas</button></div>',
+    cuenta: '<h2 class="sec">Cuenta</h2><div class="tar" style="display:flex;align-items:center;gap:12px">'+
+      '<span class="avatar" style="width:46px;height:46px;font-size:19px;border-radius:14px;background:var(--pri)">'+esc(inicial(S.sesion))+'</span>'+
+      '<div><div style="font-weight:800;font-size:17px">'+esc(S.sesion)+'</div>'+
+      '<div style="font-size:12.5px;color:var(--sub)">'+u.tareas.length+' tareas · '+u.responsables.length+' responsables</div></div></div>'+
+      '<button class="btn sec" id="a-irresp" style="margin-top:10px">👥 Ir a Responsables</button>'
+  };
+  return ajTabsHTML(tab)+(secciones[tab]||secciones.apariencia)+
     '<p style="text-align:center;color:var(--sub);font-size:12px">Organizador de Tareas · 100% offline</p>';
 }
 var PEST=[{v:'hoy',n:'Hoy',i:'🏠'},{v:'cal',n:'Agenda',i:'🗓'},{v:'tareas',n:'Tareas',i:'✅'},
@@ -3556,6 +3678,8 @@ function eliminar(id){
   confirmar('Eliminar tarea','¿Eliminar «'+(t.titulo||'')+'»? Esta acción no se puede deshacer.',
     {icono:'🗑',si:'Eliminar'},function(ok){
     if(!ok)return;
+    /* si la tarea tenia evento propio en el calendario del telefono, se borra tambien */
+    if(t.calEv&&!t.calImp&&calLibre())try{cdpNotificaciones.calBorrar(t.calEv,function(){},function(){});}catch(e){}
     U().tareas=U().tareas.filter(function(x){return x.id!==id;});
     if(UIf.id===id)resetForm();
     guardar();render();toast('Tarea eliminada');
@@ -3751,6 +3875,7 @@ function enlazar(){
   if(cp)cp.addEventListener('click',function(){calNav(-1);});
   if(cn)cn.addEventListener('click',function(){calNav(1);});
   var ch=$('cal-hoy');if(ch)ch.addEventListener('click',calIrHoy);
+  var cimp=$('cal-import');if(cimp)cimp.addEventListener('click',importarCal);
   document.querySelectorAll('[data-calv]').forEach(function(b){
     b.addEventListener('click',function(){calCambiarVista(b.getAttribute('data-calv'));});});
   document.querySelectorAll('.cal-mes[data-mes]').forEach(function(b){
@@ -3910,6 +4035,13 @@ function enlazar(){
   document.querySelectorAll('#app [data-a="tlCompactar"]').forEach(function(b){
     b.addEventListener('click',function(){TL.expandida=false;render();});
   });
+  document.querySelectorAll('#app [data-ajtab]').forEach(function(b){
+    b.addEventListener('click',function(){
+      S.ui.ajTab=b.getAttribute('data-ajtab');guardar();refrescarVista();
+      try{window.scrollTo(0,0);}catch(e){}});});
+  document.querySelectorAll('#app [data-calgoto]').forEach(function(b){
+    b.addEventListener('click',function(){
+      resetForm();S.ui.vista=b.getAttribute('data-calgoto');guardar();render();try{window.scrollTo(0,0);}catch(e){}});});
   document.querySelectorAll('#app [data-preset]').forEach(function(b){
     b.addEventListener('click',function(){
       var arr=DASH_PRESETS[b.getAttribute('data-preset')];
@@ -3983,6 +4115,27 @@ function enlazar(){
     if(!window.cdpContactos){toast('No disponible en este entorno');return;}
     window.cdpContactos.pedirPermiso(function(r){toast(r==='otorgado'?'Contactos activados':'Permiso denegado');actualizaEstadoContactos();},
       function(){actualizaEstadoContactos();});});
+  /* calendario del telefono: toggle, sincronizar ahora y traer del calendario */
+  var cs=$('a-calsync');
+  if(cs){
+    actualizaEstadoCal();
+    cs.addEventListener('change',function(){
+      if(cs.checked){
+        if(!calLibre()){cs.checked=false;S.calSync=false;guardar();toast('El calendario no está disponible en este dispositivo');return;}
+        cdpNotificaciones.calPermisos(function(p){
+          if(p!=='otorgado'){cs.checked=false;S.calSync=false;guardar();actualizaEstadoCal();toast('Sin permiso de calendario');return;}
+          S.calSync=true;guardar();syncCal(true);actualizaEstadoCal();toast('Tus tareas se copiarán al calendario');
+        },function(){cs.checked=false;S.calSync=false;guardar();actualizaEstadoCal();toast('Sin permiso de calendario');});
+      } else {
+        S.calSync=false;guardar();actualizaEstadoCal();toast('Copia al calendario desactivada');
+      }
+    });
+  }
+  var csn=$('a-calsyn');
+  if(csn)csn.addEventListener('click',function(){
+    if(!calLibre()){toast('El calendario no está disponible en este dispositivo');return;}
+    syncCal(true);toast('Sincronizando con el calendario…');actualizaEstadoCal();}); 
+  var cim2=$('a-calimp');if(cim2)cim2.addEventListener('click',importarCal);
   document.querySelectorAll('input[data-col]').forEach(function(inp){
     var k=inp.getAttribute('data-col');
     inp.addEventListener('input',function(){S.colores=S.colores||{};S.colores[k]=inp.value;});
@@ -4178,11 +4331,14 @@ function enlazarDash(){
       if(!dashDrag.activo){
         if(dx*dx+dy*dy<64)return;
         dashDrag.activo=true;
+        dashDrag.ox=t.clientX;dashDrag.oy=t.clientY;
         dashDrag.el.classList.add('dragging');
         grid.classList.add('reordenando');
         [].forEach.call(grid.querySelectorAll('.k'),function(c){c.classList.remove('wide');});
       }
       e.preventDefault();
+      /* la tarjeta sigue al dedo mientras se arrastra */
+      dashDrag.el.style.transform='translate('+(t.clientX-dashDrag.ox)+'px,'+(t.clientY-dashDrag.oy)+'px) scale(1.03)';
       var otro=masCercana(t.clientX,t.clientY,dashDrag.el);
       if(otro&&otro!==dashDrag.el){
         var cards=[].slice.call(grid.querySelectorAll('.k'));
@@ -4201,6 +4357,7 @@ function enlazarDash(){
     if(!dashDrag)return;
     var d=dashDrag;dashDrag=null;
     d.el.classList.remove('dragging');
+    d.el.style.transform='';
     grid.classList.remove('reordenando');
     if(!d.activo){dashWide();return;} /* fue un toque, no un arrastre */
     var ids=[];
