@@ -235,7 +235,7 @@ public class Notificaciones extends CordovaPlugin {
                         v.put(CalendarContract.Events.CUSTOM_APP_PACKAGE, ctx.getPackageName());
                         Uri uri = cr.insert(CalendarContract.Events.CONTENT_URI, v);
                         if (uri == null) throw new Exception("no se pudo crear el evento");
-                        cb.success(ContentUris.parseId(uri));
+                        cb.success(String.valueOf(ContentUris.parseId(uri)));
                     } catch (Throwable e) { cb.error(msg(e)); }
                 }
             });
