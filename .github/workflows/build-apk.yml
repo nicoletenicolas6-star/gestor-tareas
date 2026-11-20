@@ -65,7 +65,7 @@ jobs:
       - name: Preparar artefacto
         run: |
           mkdir -p apk
-          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.8.1-debug.apk
+          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.8.2-debug.apk
           ls -la apk/
 
       - name: Subir artefacto
@@ -77,13 +77,13 @@ jobs:
       - name: Publicar release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.8.1-ci
-          name: Gestor de Tareas v1.8.1 (debug)
+          tag_name: v1.8.2-ci
+          name: Gestor de Tareas v1.8.2 (debug)
           body: |
             APK debug generada automáticamente por GitHub Actions.
 
-            n1.8.1: nueva pestaña Calendario en Ajustes (sincronización aparte).
-            esta versión instala ENCIMA de la 1.8.0 sin desinstalar ni perder nada:
+            n1.8.2: formulario de tarea más claro (ejemplos genéricos) y alta de responsables rediseñada.
+            esta versión instala ENCIMA de la anterior sin desinstalar ni perder nada:
             la app instalada detecta esta actualización sola, la descarga con la barra
             de progreso y abre el instalador de Android.
           files: apk/*.apk

@@ -406,12 +406,13 @@ html[data-tema=oscuro] .hola{background:transparent;border-radius:16px;padding:8
 .nof .cuerpo{flex:1;min-width:0}
 .nof .tt{font-weight:700;font-size:14px}
 .nof .sub{font-size:12px;color:var(--sub);margin-top:2px}
-.resp-edit{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bor)}
 .resp-edit:last-child{border-bottom:none}
-.resp-add{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-.resp-add input{flex:1;min-width:130px}
+.resp-add{display:grid;grid-template-columns:1fr;gap:7px;background:var(--chip);border-radius:14px;padding:10px;margin-bottom:12px}
+.resp-add input{width:100%;box-sizing:border-box}
+.resp-add .fila2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.resp-edit{display:flex;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--bor)}
 .resp-campos{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
-.resp-campos input{padding:8px 10px;font-size:13.5px}
+.resp-campos input{padding:9px 11px;font-size:13.5px;border-radius:10px}
 .resp-fotowrap{position:relative;flex-shrink:0;line-height:0}
 .resp-fotobtn{position:relative;border:none;background:none;padding:0;flex-shrink:0;line-height:0;border-radius:16px}
 .resp-foto{width:52px;height:52px;border-radius:16px;object-fit:cover;background:var(--chip);display:block}
@@ -1159,11 +1160,11 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 "use strict";
 var K='mtp_organizador_tareas';
 /* === v1.8.0: actualizacion automatica desde GitHub Releases === */
-var VER_APP='1.8.1';
+var VER_APP='1.8.2';
 var ACTU={chk:0};
 var ACTU_TIPS=[
   'Toca una tarea para ver sus detalles sin entrar a editarla.',
-  'Escribe la tarea como la dirías: «Llamar a Betty mañana a las 9».',
+  'Escribe la tarea como la dirías: «Comprar pan mañana a las 9».',
   'En Tareas puedes cambiar entre lista y tablero de 3 columnas.',
   'En Ajustes › Dashboard eliges qué tarjetas se ven en Hoy.',
   'Desliza poco una tarea para posponerla una hora.',
@@ -2336,7 +2337,7 @@ function ordenarMiDia(){
 function hojaRapido(){
   $('overlay').innerHTML='<div class="overlay" role="dialog" aria-modal="true"><div class="sheet"><div class="grab"></div>'+
     '<h3>📥 Añadir rápido</h3>'+
-    '<p class="hoja-nota">Solo el título, sin fecha: va a la bandeja para agendarlo más tarde. Si lo escribes como lo dirías («llamar a Betty mañana a las 9»), se interpreta con fecha y hora.</p>'+
+    '<p class="hoja-nota">Solo el título, sin fecha: va a la bandeja para agendarlo más tarde. Si lo escribes como lo dirías («comprar pan mañana a las 9»), se interpreta con fecha y hora.</p>'+
     '<input id="rb-tit" type="text" placeholder="¿Qué hay que hacer?">'+
     '<button class="btn" id="rb-add" style="margin-top:10px">Añadir</button>'+
     '<button class="btn sec" id="ov-close" style="margin-top:12px">Cerrar</button></div></div>';
@@ -3280,9 +3281,10 @@ function formHTML(){
     '<div class="form-sec">'+
       '<div class="fs-h"><span class="fs-n">1</span><b>¿Qué hay que hacer?</b></div>'+
       (!editando?'<label class="lbl" for="f-nat">Escribe como lo dirías <span class="n">opcional</span></label>'+
-      '<div class="campo-row"><input id="f-nat" type="text" placeholder="Ej.: Llamar a Betty mañana a las 9 #casa alta" value="'+esc(UIf.nat||'')+'">'+
+      '<div class="campo-row"><input id="f-nat" type="text" placeholder="Ej.: Comprar pan mañana a las 9 #casa alta" value="'+esc(UIf.nat||'')+'">'+
       '<button class="voz" id="f-nat-ok" type="button" title="Interpretar y rellenar" aria-label="Interpretar el texto">✨</button></div>':'')+
-      '<div class="campo-row"><input id="f-tit" type="text" placeholder="Ej.: Llamar a María por el pedido" value="'+esc(UIf.titulo)+'">'+
+      '<label class="lbl" for="f-tit" style="margin-top:12px">Título <span class="n">obligatorio</span></label>'+
+      '<div class="campo-row"><input id="f-tit" type="text" placeholder="Ej.: Comprar pan en la panadería" value="'+esc(UIf.titulo)+'">'+
       '<button class="voz" id="f-voz" type="button" title="Grabar nota de voz" aria-label="Grabar nota de voz">🎤</button></div>'+
       '<div class="f-audio" id="f-audio">'+audioHTML()+'</div>'+
       '<div class="tipos" id="f-tipos" style="margin-top:10px">'+tipos+'</div>'+
@@ -3407,11 +3409,12 @@ function vistaResponsables(){
     '<p style="font-size:13px;color:var(--sub);margin:2px 0 8px">Crea a las personas que se encargan de tus tareas. Luego los asignas como responsable principal o participante al crear o editar una tarea.</p>'+
     '<button class="btn" id="r-enviar" style="margin-top:0">📤 Ver tareas por responsable</button>'+
     '<p style="font-size:12px;color:var(--sub);margin:6px 0 8px">Agrupa tus tareas por persona y manda el listado a cada uno por WhatsApp.</p>'+
+    '<p style="font-size:13px;font-weight:800;margin:12px 0 8px">✚ Añadir responsable</p>'+
     '<div class="resp-add">'+
-      '<input id="r-nom" type="text" placeholder="Nombre del responsable">'+
-      '<input id="r-cargo" type="text" placeholder="Cargo (opcional)">'+
-      '<input id="r-tel" type="tel" inputmode="tel" placeholder="WhatsApp (+53 5555 5555)">'+
-      '<button class="btn sm" id="r-add" style="margin:0;flex:0 0 auto">Añadir</button></div>'+
+      '<input id="r-nom" type="text" placeholder="Nombre completo">'+
+      '<div class="fila2"><input id="r-cargo" type="text" placeholder="Cargo (opcional)">'+
+        '<input id="r-tel" type="tel" inputmode="tel" placeholder="WhatsApp (+53…)"></div>'+
+      '<button class="btn" id="r-add" style="margin:0;width:100%">Añadir a la lista</button></div>'+
     '<div class="resp-import"><button type="button" id="r-import">📇 Traer de mis contactos</button>'+
       '<span class="nota">Busca en la agenda del móvil y se rellena el nombre y el teléfono.</span></div></div>';
   s+='<h2 class="sec">Tus responsables ('+rs.length+')</h2><div class="tar">';
@@ -3484,7 +3487,7 @@ function vistaAyuda(){
   '<h3>📥 Bandeja de entrada</h3>'+
   '<p>En <b>Hoy → 📥 Añadir rápido</b> guardas una idea en dos toques: solo el título, sin fecha. Vive en <b>Tareas → 📥 Bandeja</b>. Cuando le pongas fecha y hora sale de la bandeja y entra en tu agenda y en el calendario.</p>'+
   '<h3>✍️ Escribe como lo dirías</h3>'+
-  '<p>El campo <b>Escribe como lo dirías</b> del formulario entiende lenguaje natural: «Llamar a Betty mañana a las 9 #casa alta» rellena la fecha, la hora, la etiqueta y la prioridad sin tocar nada más. Entiende hoy, mañana, pasado mañana, los días de la semana («todos los lunes»), «el 15», horas tipo «a las 9:30», «9am», urgente/alta/baja y #etiquetas. También funciona en la bandeja.</p>'+
+  '<p>El campo <b>Escribe como lo dirías</b> del formulario entiende lenguaje natural: «Comprar pan mañana a las 9 #casa alta» rellena la fecha, la hora, la etiqueta y la prioridad sin tocar nada más. Entiende hoy, mañana, pasado mañana, los días de la semana («todos los lunes»), «el 15», horas tipo «a las 9:30», «9am», urgente/alta/baja y #etiquetas. También funciona en la bandeja.</p>'+
   '<h3>🤖 Muse y esta agenda</h3>'+
   '<p>Muse agenda en el <b>calendario del móvil</b> con la marca [Muse]; si activas «Traer automáticamente los eventos de Muse» en Ajustes → Avisos, sus eventos entran solos en la app. Al revés, tus tareas se copian al calendario para que Muse las lea. También puedes compartir texto de cualquier app (Gmail, WhatsApp, el navegador) con <b>Compartir → Organizador</b>: llega a la bandeja, interpretado si se puede.</p>'+
   '<h3>⏱ Pomodoro y tablero</h3>'+
