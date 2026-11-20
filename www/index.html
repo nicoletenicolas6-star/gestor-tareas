@@ -1069,6 +1069,17 @@ html[data-motion=reducido] *,html[data-motion=reducido] *:before,html[data-motio
 .eq-row .eq-t span{display:block;font-size:11px;color:var(--sub);margin-top:1px}
 .eq-row .eq-t .keq-track{height:6px;margin-top:5px}
 .eq-row .eq-n{font-size:15px;font-weight:900;color:var(--pri);flex:0 0 auto}
+/* pasos y etiquetas (v1.3) */
+.sub-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+.sub-row input[type=text]{flex:1;min-width:0;margin:0}
+.sub-x{background:none;border:none;color:var(--sub);font-size:15px;padding:4px;cursor:pointer}
+.subs-line{display:flex;align-items:center;gap:8px;margin-top:7px}
+.subs-bar{flex:0 0 74px;height:6px;border-radius:3px;background:var(--pri-soft,#cfe0f7);overflow:hidden}
+.subs-bar i{display:block;height:100%;background:var(--pri);border-radius:3px}
+.subs-bar.compl i{background:var(--ok,#1F8A3C)}
+.subs-line span{font-size:11.5px;color:var(--sub);white-space:nowrap}
+.tags-line{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.tagc{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:99px}
 </style>
 </head>
 <body>
@@ -1111,7 +1122,19 @@ var S=null;
 var UIf=formVacio();
 var telRespId=0; /* responsable al que pertenece el campo de teléfono */
 var swipeSuprime=false;
-function formVacio(){return {id:0,titulo:'',nota:'',fecha:'',hora:'',rec:'',recHora:'',principal:'',tipo:'mio',part:[],audio:'',audioDur:0,dur:0,pri:'normal',rep:'',
+function tagLista(s){var r=[];(s||'').split(/[,\n]/).forEach(function(x){x=(x||'').trim().toLowerCase().replace(/^#+/,'');
+  if(x&&r.indexOf(x)<0)r.push(x);});return r;}
+function tagColor(x){var h=0;x=String(x);for(var i=0;i<x.length;i++)h=(h*31+x.charCodeAt(i))%360;return hexDeHsl(h,55,46);}
+function limpiarSubs(ss){return (ss||[]).filter(function(s){return (s.txt||'').trim();})
+  .map(function(s){return {txt:(s.txt||'').trim(),hecha:!!s.hecha};});}
+function pasosHTML(t){var ss=t.subs||[];if(!ss.length)return '';
+  var n=ss.filter(function(s){return s.hecha;}).length;
+  return '<div class="subs-line"><div class="subs-bar'+(n===ss.length?' compl':'')+'"><i style="width:'+Math.round(100*n/ss.length)+'%"></i></div>'+
+    '<span>'+n+'/'+ss.length+' paso'+(ss.length===1?'':'s')+'</span></div>';}
+function tagsHTML(t){var ts=t.tags||[];if(!ts.length)return '';
+  return '<div class="tags-line">'+ts.map(function(x){var c=tagColor(x);
+    return '<span class="tagc" style="background:'+c+'22;color:'+c+'">#'+esc(x)+'</span>';}).join('')+'</div>';}
+function formVacio(){return {id:0,titulo:'',nota:'',fecha:'',hora:'',rec:'',recHora:'',principal:'',tipo:'mio',part:[],subs:[],tags:[],audio:'',audioDur:0,dur:0,pri:'normal',rep:'',
   respAbierto:false,respNombre:'',respCargo:'',respTel:''};}
 
 function coloresDef(){return {mio:'#1E5AE8',seg:'#1F8A3C',rev:'#C25A00'};}
@@ -1246,6 +1269,7 @@ function cargar(){
   if(S.radio===undefined)S.radio='redondo';
   if(S.texto===undefined)S.texto='normal';
   if(S.calSync===undefined)S.calSync=false;
+  if(S.calAutoImp===undefined)S.calAutoImp=false;
   if(S.motion===undefined)S.motion=true;
   if(['completa','compacta','oculta'].indexOf(S.tlModo)<0)S.tlModo='completa';
   if(!S.colores)S.colores={};
@@ -1279,7 +1303,9 @@ function cargar(){
       if(t.rep&&(typeof t.repHechas!=='object'||!t.repHechas))t.repHechas={};
       if(t.calEv===undefined)t.calEv='';
       if(t.calUpd===undefined)t.calUpd='';
-      if(t.calImp===undefined)t.calImp=0;});
+      if(t.calImp===undefined)t.calImp=0;
+      if(!t.subs)t.subs=[];
+      if(!t.tags)t.tags=[];});
   });
 }
 function guardar(){
@@ -1460,14 +1486,65 @@ function importarCalHoja(evts){
   document.querySelectorAll('[data-imp]').forEach(function(b){
     b.addEventListener('click',function(){var e=evts[+b.getAttribute('data-imp')];if(!e)return;cerrarOverlay();crearTareaDeEvento(e);});});
 }
-function crearTareaDeEvento(e){
+function crearTareaDeEvento(e,silencio){
   var u=U();
   if(u.tareas.some(function(t){return String(t.calEv||'')===String(e.evId);}))return;
   u.tareas.push({id:u.seq++,titulo:e.titulo||'Evento',nota:e.desc||'',fecha:e.fecha||hoyISO(),hora:e.allDay?'':(e.hora||''),
     rec:'',recHora:'',principal:'',tipo:'mio',participantes:[],audio:'',audioDur:0,dur:0,pri:'normal',
     rep:'',repHechas:{},hecha:false,creada:hoyISO(),cumplida:'',calEv:String(e.evId),calUpd:'',calImp:1});
   guardar();render();
-  toast('📅 «'+(e.titulo||'Evento')+'» añadida a tus tareas');
+  if(!silencio)toast('📅 «'+(e.titulo||'Evento')+'» añadida a tus tareas');
+}
+/* importacion automatica: solo eventos con [Muse] en la descripcion */
+function importarCalAuto(){
+  if(!S||!S.sesion||!S.calAutoImp)return;
+  if(!window.cdpNotificaciones||!cdpNotificaciones.calEventos||!cdpNotificaciones.calPermisos)return;
+  cdpNotificaciones.calPermisos(function(p){
+    if(p!=='otorgado'||!S.calAutoImp)return;
+    var desde=Date.now()-6*3600000;
+    cdpNotificaciones.calEventos(desde,desde+21*86400000,function(evts){
+      var ya={};U().tareas.forEach(function(t){if(t.calEv)ya[String(t.calEv)]=1;});
+      var n=0;
+      (evts||[]).forEach(function(e){
+        if(e.mio)return;
+        var desc=e.desc||'';
+        if(desc.indexOf('[Muse]')<0)return;
+        if(ya[String(e.evId)])return;
+        crearTareaDeEvento({evId:e.evId,titulo:e.titulo||'Evento',desc:desc.replace(/\[Muse\]\s*/g,''),fecha:e.fecha,hora:e.hora,allDay:e.allDay},true);
+        n++;
+      });
+      if(n)toast('📅 '+n+' tarea'+(n===1?'':'s')+' de Muse entr'+(n===1?'ó':'aron')+' al calendario');
+    },function(){});
+  },function(){});
+}
+/* completar una tarea propia quita su evento del calendario (coherencia con el puente) */
+function cumplirCal(t){
+  if(t.calEv&&!t.calImp&&calLibre())try{cdpNotificaciones.calBorrar(t.calEv,function(){},function(){});}catch(e){}
+  t.calEv='';t.calUpd='';
+}
+/* posponer: '1h' | 'manana' | 'libre' (proximo dia con hueco a la misma hora) */
+function posponer(id,cuando){
+  var t=porId(id);if(!t)return;
+  function dd(n){return String(n).padStart(2,'0');}
+  if(cuando==='1h'){
+    var base=(t.fecha&&t.hora)?tsOf(t.fecha,t.hora)+3600000:0;
+    if(!base){var z=new Date();z.setMinutes(0,0,0);base=z.getTime()+3600000;}
+    if(base<=(new Date()).getTime())base=tsOf(sumar(hoyISO(),1),'09:00');
+    var q=new Date(base);t.fecha=iso(q);t.hora=dd(q.getHours())+':'+dd(q.getMinutes());
+  } else if(cuando==='manana'){
+    t.fecha=sumar(t.fecha||hoyISO(),1);if(!t.hora)t.hora='09:00';
+  } else {
+    var part=t.fecha||hoyISO(),f=sumar(part,30);
+    for(var i=1;i<=30;i++){
+      var ff=sumar(part,i);
+      var choca=tareasDeDia(ff).some(function(x){return x.id!==t.id&&x.hora&&x.hora===t.hora;});
+      if(!choca){f=ff;break;}
+    }
+    t.fecha=f;if(!t.hora)t.hora='09:00';
+  }
+  if(t.rec)t.rec=''; /* posponer rompe la serie: se vuelve puntual */
+  guardar();render();
+  toast('⏱ Pospuesta a '+linda(t.fecha)+(t.hora?' '+t.hora:''));
 }
 /* red de seguridad en primer plano: si la alarma nativa falla, el aviso sale igual
    con la app abierta (mismo id de notificación → no se duplica con la alarma) */
@@ -1531,9 +1608,10 @@ function htmlTarea(t){
     (oc?'':'<div class="swipe-del">🗑 Eliminar</div>')+
     '<div class="tarea'+(t.hecha?' done':'')+'" style="border-left-color:'+colorTipo(t)+'">'+
       '<button class="chk'+(t.hecha?' on':'')+'" data-a="toggle"></button>'+
-      '<div class="cuerpo" data-a="editar"><div class="tt">'+esc(tit)+'</div>'+metaHTML(t)+
+      '<div class="cuerpo" data-a="editar"><div class="tt">'+esc(tit)+'</div>'+metaHTML(t)+pasosHTML(t)+tagsHTML(t)+
         (t.audio?'<div class="nota-audio"><audio controls preload="none" src="'+esc(audioSrc(t.audio))+'"></audio></div>':'')+'</div>'+
       '<div class="acc">'+
+        '<button class="sh" data-a="posponer" aria-label="Posponer" title="Posponer">⏰</button>'+
         '<button class="sh" data-a="compartir" aria-label="Compartir por WhatsApp">📤</button>'+
         '<button class="ed" data-a="editar" aria-label="Editar">✏️</button>'+
         (oc?'':'<button class="el" data-a="borrar" aria-label="Eliminar">🗑</button>')+
@@ -2640,6 +2718,14 @@ function formHTML(){
       '<div class="fs-h"><span class="fs-n">4</span><b>Detalles</b><span class="fs-x">Opcional</span></div>'+
       '<label class="lbl" for="f-nota">Nota</label>'+
       '<textarea id="f-nota" rows="3" placeholder="Instrucciones, acuerdos, contexto…">'+esc(UIf.nota)+'</textarea>'+
+      '<label class="lbl">Pasos <span class="n">'+((UIf.subs||[]).length?UIf.subs.filter(function(s){return s.hecha;}).length+'/'+UIf.subs.length:'opcional')+'</span></label>'+
+      '<div id="f-subs">'+((UIf.subs||[]).length?UIf.subs.map(function(s,i){
+        return '<div class="sub-row"><input type="checkbox" data-subchk="'+i+'"'+(s.hecha?' checked':'')+' style="width:18px;height:18px;accent-color:var(--pri)">'+
+          '<input type="text" data-sub="'+i+'" placeholder="Paso '+(i+1)+'" value="'+esc(s.txt||'')+'">'+
+          '<button type="button" data-subdel="'+i+'" aria-label="Quitar paso" class="sub-x">✕</button></div>';}).join(''):'')+'</div>'+
+      '<div class="form-links"><button type="button" class="linkbtn" id="f-addsub">➕ Añadir paso</button></div>'+
+      '<label class="lbl" for="f-tags">Etiquetas</label>'+
+      '<input id="f-tags" type="text" placeholder="Separadas por coma: casa, trabajo…" value="'+esc((UIf.tags||[]).join(', '))+'">'+
     '</div>'+
 
     '<div class="form-acc"><button class="btn" id="f-guardar">'+(editando?'Guardar cambios':'Añadir tarea')+'</button>'+
@@ -2823,6 +2909,9 @@ function vistaAjustes(){
       '<label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer">'+
         '<input type="checkbox" id="a-calsync" '+(S.calSync?'checked':'')+' style="width:20px;height:20px;accent-color:var(--pri)">'+
         '<span style="font-weight:700">Copiar tareas al calendario</span></label>'+
+      '<label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer">'+
+        '<input type="checkbox" id="a-calauto" '+(S.calAutoImp?'checked':'')+' style="width:20px;height:20px;accent-color:var(--pri)">'+
+        '<span style="font-weight:700">Traer automáticamente los eventos de Muse <small style="font-weight:400;color:var(--sub);display:block">Solo los que Muse marque con [Muse] en la descripción</small></span></label>'+
       '<button class="btn sec" id="a-calsyn">🔄 Sincronizar ahora</button>'+
       '<button class="btn sec" id="a-calimp">📥 Traer del calendario</button></div>',
     resumen: '<h2 class="sec">📊 Dashboard</h2><div class="tar">'+
@@ -2942,6 +3031,13 @@ function leerForm(){
   if($('f-printel')&&!$('f-printel').disabled&&telRespId&&telRespId===+UIf.principal){
     var _rp=respPorId(telRespId);if(_rp)_rp.tel=($('f-printel').value||'').trim();}
   if($('f-nota'))UIf.nota=$('f-nota').value;
+  if($('f-tags'))UIf.tags=tagLista($('f-tags').value);
+  document.querySelectorAll('input[data-sub]').forEach(function(inp){
+    var i=+inp.getAttribute('data-sub');
+    if(UIf.subs&&UIf.subs[i]!==undefined)UIf.subs[i].txt=inp.value;});
+  document.querySelectorAll('input[data-subchk]').forEach(function(c){
+    var i=+c.getAttribute('data-subchk');
+    if(UIf.subs&&UIf.subs[i]!==undefined)UIf.subs[i].hecha=c.checked;});
 }
 function resetForm(){if(grabando)cancelarGrabacion();UIf=formVacio();}
 function doGuardarForm(){
@@ -2954,12 +3050,13 @@ function doGuardarForm(){
       t.principal=UIf.principal;t.tipo=UIf.tipo;t.participantes=UIf.part.slice();
       t.audio=UIf.audio||'';t.audioDur=UIf.audioDur||0;
       t.rep=(UIf.fecha&&UIf.rep)?UIf.rep:'';
-      if(t.rep&&(typeof t.repHechas!=='object'||!t.repHechas))t.repHechas={};}
+      if(t.rep&&(typeof t.repHechas!=='object'||!t.repHechas))t.repHechas={};
+      t.subs=limpiarSubs(UIf.subs);t.tags=UIf.tags||[];}
     toast('Tarea actualizada');
   }else{U().tareas.push({id:U().seq++,titulo:titulo,nota:UIf.nota.trim(),fecha:UIf.fecha,hora:UIf.hora,
       rec:UIf.rec,recHora:UIf.recHora,principal:UIf.principal,tipo:UIf.tipo,participantes:UIf.part.slice(),
       audio:UIf.audio||'',audioDur:UIf.audioDur||0,dur:UIf.dur||0,pri:UIf.pri||'normal',
-      rep:(UIf.fecha&&UIf.rep)?UIf.rep:'',repHechas:{},
+      rep:(UIf.fecha&&UIf.rep)?UIf.rep:'',repHechas:{},subs:limpiarSubs(UIf.subs),tags:UIf.tags||[],
       hecha:false,creada:hoyISO(),cumplida:''});
     toast('Tarea añadida');}
   resetForm();guardar();render();
@@ -2969,7 +3066,7 @@ function editar(id){
   cerrarOverlay();
   UIf={id:t.id,titulo:t.titulo,nota:t.nota||'',fecha:t.fecha||'',hora:t.hora||'',rec:t.rec||'',
     recHora:t.recHora||'',principal:t.principal||'',tipo:t.tipo||'mio',part:(t.participantes||[]).slice(),
-    audio:t.audio||'',audioDur:t.audioDur||0,dur:t.dur||0,pri:t.pri||'normal',rep:t.rep||'',respAbierto:false,respNombre:'',respCargo:'',respTel:''};
+    audio:t.audio||'',audioDur:t.audioDur||0,dur:t.dur||0,pri:t.pri||'normal',rep:t.rep||'',subs:(t.subs||[]).slice(),tags:(t.tags||[]).slice(),respAbierto:false,respNombre:'',respCargo:'',respTel:''};
   if(S.ui.vista!=='tareas')S.ui.vista='tareas';
   render();
   try{window.scrollTo(0,0);}catch(e){}
@@ -3696,7 +3793,15 @@ function enlazarTareas(q){
       if(t.hecha){t.hecha=false;t.cumplida='';guardar();render();toast('Desmarcada');return;}
       confirmar('Marcar como cumplida','¿Marcar «'+(t.titulo||'')+'» como cumplida? Se guardará con la fecha de hoy.',
         {icono:'✅',ic:'info',si:'Sí, cumplida',siCls:'ok'},function(ok){
-          if(!ok)return;t.hecha=true;t.cumplida=hoyISO();guardar();render();toast('✔ Marcada como cumplida');});});});
+          if(!ok)return;t.hecha=true;t.cumplida=hoyISO();cumplirCal(t);guardar();render();toast('✔ Marcada como cumplida');});});});
+  (q||document).querySelectorAll('.tarea [data-a=posponer]').forEach(function(b){
+    if(b.__ev)return;b.__ev=1;
+    b.addEventListener('click',function(e){e.stopPropagation();
+      var w=b.closest('.swipe'),t=porId(+w.getAttribute('data-id'));if(!t)return;
+      hojaOpciones('Posponer «'+(t.titulo||'Nota de voz')+'»',[
+        {t:'⏰ 1 hora (o mañana 9:00 si ya pasó)',cb:function(){posponer(t.id,'1h');}},
+        {t:'🌅 Mañana a la misma hora',cb:function(){posponer(t.id,'manana');}},
+        {t:'🗓 Próximo día con hueco',cb:function(){posponer(t.id,'libre');}}]);});});
   (q||document).querySelectorAll('.tarea [data-a=borrar]').forEach(function(b){
     if(b.__ev)return;b.__ev=1;
     b.addEventListener('click',function(e){e.stopPropagation();
@@ -3856,6 +3961,21 @@ function enlazar(){
     b.addEventListener('click',function(){leerForm();
       var id=+b.getAttribute('data-partdel');
       UIf.part=UIf.part.filter(function(p){return +p!==id;});render();});});
+  var asub=$('f-addsub');
+  if(asub)asub.addEventListener('click',function(){
+    leerForm();
+    if(!UIf.subs)UIf.subs=[];
+    var v=(UIf.subs.length&&UIf.subs[UIf.subs.length-1]&&!UIf.subs[UIf.subs.length-1].txt.trim())?UIf.subs[UIf.subs.length-1].txt:'';
+    UIf.subs.push({txt:v,hecha:false});render();
+    setTimeout(function(){var els=document.querySelectorAll('input[data-sub]');
+      if(els.length){var u=els[els.length-1];try{u.focus();}catch(e){}}},30);});
+  document.querySelectorAll('button[data-subdel]').forEach(function(b){
+    b.addEventListener('click',function(){leerForm();
+      UIf.subs.splice(+b.getAttribute('data-subdel'),1);render();});});
+  document.querySelectorAll('input[data-subchk]').forEach(function(c){
+    c.addEventListener('change',function(){leerForm();
+      var i=+c.getAttribute('data-subchk');
+      if(UIf.subs&&UIf.subs[i]!==undefined){UIf.subs[i].hecha=c.checked;render();}});});
   var ap=$('f-addpart');
   if(ap)ap.addEventListener('click',function(){
     leerForm();
@@ -3895,7 +4015,7 @@ function enlazar(){
       var t=porId(id);if(!t)return;
       if(oc){toggleOcurrencia(t,oc);return;}
       if(t.hecha){t.hecha=false;t.cumplida='';guardar();render();toast('Desmarcada');return;}
-      t.hecha=true;t.cumplida=hoyISO();guardar();render();toast('✔ Marcada como cumplida');
+      t.hecha=true;t.cumplida=hoyISO();cumplirCal(t);guardar();render();toast('✔ Marcada como cumplida');
     });});
   /* agenda: enviar el día o la semana por WhatsApp */
   document.querySelectorAll('[data-agenda-dia]').forEach(function(b){
@@ -4131,6 +4251,16 @@ function enlazar(){
       }
     });
   }
+  var ca=$('a-calauto');
+  if(ca)ca.addEventListener('change',function(){
+    if(ca.checked){
+      if(!calLibre()){ca.checked=false;S.calAutoImp=false;guardar();toast('El calendario no está disponible en este dispositivo');return;}
+      cdpNotificaciones.calPermisos(function(p){
+        if(p!=='otorgado'){ca.checked=false;S.calAutoImp=false;guardar();toast('Sin permiso de calendario');return;}
+        S.calAutoImp=true;guardar();importarCalAuto();toast('Los eventos de Muse entrarán solos');
+      },function(){ca.checked=false;S.calAutoImp=false;guardar();toast('Sin permiso de calendario');});
+    } else {S.calAutoImp=false;guardar();toast('Importación automática desactivada');}
+  });
   var csn=$('a-calsyn');
   if(csn)csn.addEventListener('click',function(){
     if(!calLibre()){toast('El calendario no está disponible en este dispositivo');return;}
@@ -4533,7 +4663,7 @@ document.addEventListener('backbutton',function(e){
   if(S.sesion&&S.ui.vista==='enviar'){S.ui.vista='resp';guardar();render();return;}
   if(S.sesion&&S.ui.vista!=='hoy'){S.ui.vista='hoy';guardar();render();return;}
   if(navigator.app&&navigator.app.exitApp)navigator.app.exitApp();},false);
-document.addEventListener('resume',function(){ if(S&&S.sesion){cargar();aplicarTema();syncNotif();} },false);
+document.addEventListener('resume',function(){ if(S&&S.sesion){cargar();aplicarTema();syncNotif();importarCalAuto();} },false);
 /* modo automático: revisa el reloj una vez por minuto */
 setInterval(function(){ if(S&&S.autoTema&&document.documentElement.getAttribute('data-tema')!==temaResuelto())aplicarTema(); },60000);
 
@@ -4556,6 +4686,7 @@ inp.accept='application/json,.json';inp.style.display='none';document.body.appen
 var inpf=document.createElement('input');inpf.type='file';inpf.id='f-respfoto';
 inpf.accept='image/*';inpf.style.display='none';document.body.appendChild(inpf);
 try{ render(); }catch(e){ console.error('render',e); toast('Error al dibujar: '+e.message); }
+try{ importarCalAuto(); }catch(e){ console.error('calAuto',e); }
 if(!S.sesion)carga('Cargando…',650); else carga('Un momento…',500);
 /* red de seguridad: si algo falla, el cargador nunca se queda para siempre */
 setTimeout(function(){ if($('carga')&&!$('carga').classList.contains('off')){ $('carga').classList.add('off'); } },4000);
