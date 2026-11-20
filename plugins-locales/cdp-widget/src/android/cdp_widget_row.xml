@@ -4,14 +4,26 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="2dp"
-    android:paddingBottom="2dp">
+    android:background="@drawable/cdp_row_bg"
+    android:layout_marginTop="2dp"
+    android:paddingLeft="8dp"
+    android:paddingRight="8dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <TextView
+        android:id="@+id/cdp_row_dot"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="15sp"
+        android:textColor="#FF1E5AE8" />
 
     <TextView
         android:id="@+id/cdp_row_hora"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:minWidth="34sp"
+        android:layout_marginLeft="7dp"
+        android:minWidth="32sp"
         android:textSize="12sp"
         android:textStyle="bold"
         android:textColor="#FF1E5AE8" />
@@ -22,7 +34,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginLeft="8dp"
-        android:textSize="13sp"
+        android:textSize="14sp"
         android:textColor="#FF1B1B1B"
         android:maxLines="1"
         android:ellipsize="end" />
@@ -32,6 +44,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginLeft="6dp"
-        android:textSize="13sp"
+        android:textSize="14sp"
         android:textColor="#FF9AA0A6" />
 </LinearLayout>

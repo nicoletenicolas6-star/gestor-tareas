@@ -17,15 +17,16 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
- * Widget de la agenda: cabecera con fecha y una fila por tarea
- * (hora en acento, titulo, y check/tachado si esta hecha).
- * El color de acento lo manda la app en el JSON (campo "acento");
- * la app le pasa los datos por el plugin CdpWidget (SharedPreferences);
- * al tocar el widget se abre la aplicacion.
+ * Widget de la agenda: cabecera con el acento de la app, fondo suavemente
+ * tteido de ese mismo color y una fila-tarjeta por tarea (punto del tipo,
+ * hora en acento, titulo, y check/tachado si esta hecha).
+ * El color de acento lo manda la app en el JSON (campo "acento"), igual que
+ * el color de cada tarea (campo "c" de cada linea); los datos llegan por el
+ * plugin CdpWidget (SharedPreferences); al tocar el widget se abre la app.
  */
 public class WidgetProvider extends AppWidgetProvider {
 
-    private static final int MAX = 8;
+    private static final int MAX = 12;
     private static final int ACENTO_DEF = 0xFF1E5AE8;
     private static final int COLOR_TXT = 0xFF1B1B1B;
     private static final int COLOR_TXT2 = 0xFF6B7280;
@@ -41,6 +42,14 @@ public class WidgetProvider extends AppWidgetProvider {
         AppWidgetManager mgr = AppWidgetManager.getInstance(ctx);
         ComponentName cn = new ComponentName(ctx, WidgetProvider.class);
         pintar(ctx, mgr, mgr.getAppWidgetIds(cn));
+    }
+
+    /* mezcla el acento con blanco: f = 0 (blanco) .. 1 (acento puro) */
+    private static int mezclar(int acento, double f) {
+        int r = (int) Math.round(Color.red(acento) * f + 255 * (1 - f));
+        int g = (int) Math.round(Color.green(acento) * f + 255 * (1 - f));
+        int b = (int) Math.round(Color.blue(acento) * f + 255 * (1 - f));
+        return Color.rgb(Math.min(255, Math.max(0, r)), Math.min(255, Math.max(0, g)), Math.min(255, Math.max(0, b)));
     }
 
     static void pintar(Context ctx, AppWidgetManager mgr, int[] ids) {
@@ -64,6 +73,7 @@ public class WidgetProvider extends AppWidgetProvider {
         }
 
         RemoteViews v = new RemoteViews(ctx.getPackageName(), R.layout.cdp_widget);
+        try { v.setInt(R.id.cdp_widget_root, "setBackgroundColor", mezclar(acento, 0.14)); } catch (Exception e) { }
         v.setTextViewText(R.id.cdp_widget_tit, "Organizador");
         v.setInt(R.id.cdp_widget_tit, "setTextColor", acento);
         if (cuando == null) cuando = "";
@@ -75,29 +85,36 @@ public class WidgetProvider extends AppWidgetProvider {
                 JSONObject l = ls.getJSONObject(i);
                 String h = l.optString("h", "");
                 String t = l.optString("t", "");
+                String c = l.optString("c", "");
                 boolean hecha = l.optBoolean("hecha", false);
                 if (h == null) h = "";
                 if (t == null) t = "";
                 if (t.length() == 0) continue;
                 boolean vencida = "\u26a0".equals(h);
+                int colTipo = acento;
+                if (vencida) colTipo = COLOR_VENCIDA;
+                else if (c != null && c.length() > 0) {
+                    try { colTipo = Color.parseColor(c); } catch (Exception e) { colTipo = acento; }
+                }
                 RemoteViews r = new RemoteViews(ctx.getPackageName(), R.layout.cdp_widget_row);
-                r.setTextViewText(R.id.cdp_row_hora, h);
+                r.setTextViewText(R.id.cdp_row_dot, "\u25cf");
+                r.setInt(R.id.cdp_row_dot, "setTextColor", hecha ? COLOR_CHECK_OFF : colTipo);
+                r.setTextViewText(R.id.cdp_row_hora, vencida ? "\u26a0" : h);
                 r.setInt(R.id.cdp_row_hora, "setTextColor", vencida ? COLOR_VENCIDA : acento);
                 r.setTextViewText(R.id.cdp_row_tit, t);
-                r.setInt(R.id.cdp_row_tit, "setTextColor", COLOR_TXT);
+                r.setInt(R.id.cdp_row_tit, "setTextColor", hecha ? COLOR_TXT2 : COLOR_TXT);
                 r.setInt(R.id.cdp_row_tit, "setPaintFlags",
                         (hecha ? Paint.STRIKE_THRU_TEXT_FLAG : 0) | Paint.ANTI_ALIAS_FLAG);
-                r.setTextViewText(R.id.cdp_row_chk, hecha ? "\u2713" : "\u25cb");
-                r.setInt(R.id.cdp_row_chk, "setTextColor", hecha ? acento : COLOR_CHECK_OFF);
+                r.setTextViewText(R.id.cdp_row_chk, hecha ? "\u2713" : "");
+                r.setInt(R.id.cdp_row_chk, "setTextColor", acento);
                 v.addView(R.id.cdp_widget_fila, r);
                 n++;
-        }
+            }
         } catch (Exception e) { n = 0; }
 
         if (n == 0) {
             v.setViewVisibility(R.id.cdp_widget_fila, android.view.View.GONE);
             v.setViewVisibility(R.id.cdp_widget_vacio, android.view.View.VISIBLE);
-            v.setTextViewText(R.id.cdp_widget_vacio, "No hay tareas para hoy.\nToca para abrir la agenda.");
         } else {
             v.setViewVisibility(R.id.cdp_widget_fila, android.view.View.VISIBLE);
             v.setViewVisibility(R.id.cdp_widget_vacio, android.view.View.GONE);
