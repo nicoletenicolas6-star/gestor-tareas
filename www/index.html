@@ -411,8 +411,10 @@ html[data-tema=oscuro] .hola{background:transparent;border-radius:16px;padding:8
 .resp-add input{width:100%;box-sizing:border-box}
 .resp-add .fila2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .resp-edit{display:flex;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--bor)}
-.resp-campos{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
-.resp-campos input{padding:9px 11px;font-size:13.5px;border-radius:10px}
+.resp-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.resp-info b{font-size:14.5px;line-height:1.25}
+.resp-info span{font-size:12px;color:var(--sub)}
+.resp-editbtn{flex-shrink:0;background:var(--pri-soft);color:var(--pri);border:none;border-radius:10px;width:34px;height:34px;font-size:15px;display:flex;align-items:center;justify-content:center}
 .resp-fotowrap{position:relative;flex-shrink:0;line-height:0}
 .resp-fotobtn{position:relative;border:none;background:none;padding:0;flex-shrink:0;line-height:0;border-radius:16px}
 .resp-foto{width:52px;height:52px;border-radius:16px;object-fit:cover;background:var(--chip);display:block}
@@ -1160,7 +1162,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 "use strict";
 var K='mtp_organizador_tareas';
 /* === v1.8.0: actualizacion automatica desde GitHub Releases === */
-var VER_APP='1.8.4';
+var VER_APP='1.8.5';
 var ACTU={chk:0};
 var ACTU_TIPS=[
   'Toca una tarea para ver sus detalles sin entrar a editarla.',
@@ -3420,15 +3422,15 @@ function vistaResponsables(){
   s+='<h2 class="sec">Tus responsables ('+rs.length+')</h2><div class="tar">';
   s+=rs.length?rs.map(function(r){
     var av=r.foto?'<img class="resp-foto" src="'+esc(r.foto)+'" alt="">':avatar(r.id,52);
+    var sub=[r.cargo?esc(r.cargo):'',r.tel?esc(r.tel):''].filter(Boolean).join(' \u00b7 ');
     return '<div class="resp-edit" data-rid="'+r.id+'">'+
       '<div class="resp-fotowrap"><button class="resp-fotobtn" data-a="resp-foto" data-id="'+r.id+'" aria-label="Foto de '+esc(r.nombre)+'">'+av+'</button>'+
-        (r.foto?'<button class="resp-x" data-a="resp-fotodel" data-id="'+r.id+'" aria-label="Quitar foto">✕</button>':'')+'</div>'+
-      '<div class="resp-campos">'+
-        '<input type="text" data-rnom="'+r.id+'" value="'+esc(r.nombre)+'" placeholder="Nombre" aria-label="Nombre">'+
-        '<input type="text" data-rcargo="'+r.id+'" value="'+esc(r.cargo||'')+'" placeholder="Cargo (opcional)" aria-label="Cargo">'+
-        '<input type="tel" inputmode="tel" data-rtel="'+r.id+'" value="'+esc(r.tel||'')+'" placeholder="WhatsApp (+53 5555 5555)" aria-label="Teléfono"></div>'+
-      '<div style="width:100%"><button type="button" class="link"><span data-verr="'+r.id+'" style="display:inline-block">👥 Sus tareas ›</span></button></div>'+
-      '<button class="resp-del" data-a="resp-del" data-id="'+r.id+'" aria-label="Eliminar responsable">🗑</button></div>';
+        (r.foto?'<button class="resp-x" data-a="resp-fotodel" data-id="'+r.id+'" aria-label="Quitar foto">\u2715</button>':'')+'</div>'+
+      '<div class="resp-info">'+
+        '<b>'+esc(r.nombre)+'</b>'+(sub?'<span>'+sub+'</span>':'')+
+        '<button type="button" class="link"><span data-verr="'+r.id+'" style="display:inline-block">\ud83d\udc65 Sus tareas \u203a</span></button></div>'+
+      '<button class="resp-editbtn" type="button" data-a="resp-editar" data-id="'+r.id+'" aria-label="Editar '+esc(r.nombre)+'">\u270f\ufe0f</button>'+
+      '<button class="resp-del" data-a="resp-del" data-id="'+r.id+'" aria-label="Eliminar responsable">\ud83d\uddd1</button></div>';
   }).join(''):'<p class="vacio" style="padding:8px">Todavía no hay responsables. Crea el primero arriba.</p>';
   s+='</div>';
   s+='<p style="font-size:12px;color:var(--sub);text-align:center;margin:2px 0 0">💡 La foto se recorta en miniatura y se guarda en el dispositivo.</p>';
@@ -3614,7 +3616,7 @@ function vistaAjustes(){
         '<input type="checkbox" id="a-actup" '+(S.actUp?'checked':'')+' style="width:20px;height:20px;accent-color:var(--pri)">'+
         '<span style="font-weight:700">Buscar actualizaciones al abrir <small style="font-weight:400;color:var(--sub);display:block">Comprueba cada vez que abres o vuelves a la app</small></span></label>'+
       '<button class="btn sec" id="a-actnow" style="margin-top:6px">🔎 Verificar ahora</button>'+
-      '<p style="font-size:12px;color:var(--sub);margin:10px 0 0">Versión instalada: <b>1.8.4</b></p></div>',
+      '<p style="font-size:12px;color:var(--sub);margin:10px 0 0">Versión instalada: <b>1.8.5</b></p></div>',
     cuenta: '<h2 class="sec">Cuenta</h2><div class="tar" style="display:flex;align-items:center;gap:12px">'+
       '<span class="avatar" style="width:46px;height:46px;font-size:19px;border-radius:14px;background:var(--pri)">'+esc(inicial(S.sesion))+'</span>'+
       '<div><div style="font-weight:800;font-size:17px">'+esc(S.sesion)+'</div>'+
@@ -3909,7 +3911,7 @@ function abrirDetalle(id){
     (t.nota?'<p class="det-nota">'+esc(t.nota)+'</p>':'')+
     tagsHTML(t)+
     '<button class="btn" id="dt-editar" style="margin-top:10px">\u270f\ufe0f Editar</button>'+
-    '<button class="btn sec" id="dt-toggle" style="margin-top:8px">'+(t.hecha?'Desmarcar':'\u2705 Marcar cumplida')+'</button>'+
+    '<button class="btn sec" id="dt-toggle" style="margin-top:8px">'+(t.hecha?'\u21a9\ufe0f Volver a pendiente':'\u2705 Marcar como cumplida')+'</button>'+
     '<button class="btn sec" id="ov-close" style="margin-top:10px">Cerrar</button></div></div>';
   var ov=document.querySelector('.overlay');if(ov)ov.addEventListener('click',function(e){if(e.target===this)cerrarOverlay();});
   $('ov-close').addEventListener('click',cerrarOverlay);
@@ -4567,6 +4569,24 @@ function enlazarTareas(q){
     a.addEventListener('click',function(e){e.stopPropagation();});});
 }
 /* hoja con scroll para ver una lista de tareas y abrirlas con el dedo */
+function hojaRespEdit(id){
+  var r=respPorId(id);if(!r)return;
+  $('overlay').innerHTML='<div class="overlay" role="dialog" aria-modal="true"><div class="sheet"><div class="grab"></div>'+
+    '<h3>\u270f\ufe0f Editar a '+esc(r.nombre)+'</h3>'+
+    '<input type="text" id="re-nom" value="'+esc(r.nombre)+'" placeholder="Nombre" aria-label="Nombre" style="display:block;width:100%;box-sizing:border-box;margin-top:10px;padding:11px 12px">'+
+    '<input type="text" id="re-cargo" value="'+esc(r.cargo||'')+'" placeholder="Cargo (opcional)" aria-label="Cargo" style="display:block;width:100%;box-sizing:border-box;margin-top:8px;padding:11px 12px">'+
+    '<input type="tel" inputmode="tel" id="re-tel" value="'+esc(r.tel||'')+'" placeholder="WhatsApp (+53 5555 5555)" aria-label="Tel\u00e9fono" style="display:block;width:100%;box-sizing:border-box;margin-top:8px;padding:11px 12px">'+
+    '<button class="btn" id="re-ok" style="margin-top:12px">Guardar</button>'+
+    '<button class="btn sec" id="ov-close" style="margin-top:8px">Cerrar</button></div></div>';
+  var ov=document.querySelector('.overlay');if(ov)ov.addEventListener('click',function(e){if(e.target===this)cerrarOverlay();});
+  $('ov-close').addEventListener('click',cerrarOverlay);
+  $('re-ok').addEventListener('click',function(){
+    var nom=($('re-nom').value||'').trim();
+    if(!nom){toast('El nombre no puede quedar vac\u00edo');return;}
+    r.nombre=nom;r.cargo=($('re-cargo').value||'').trim();r.tel=($('re-tel').value||'').trim();
+    guardar();cerrarOverlay();toast('Datos de '+r.nombre+' guardados');render();
+  });
+}
 function hojaTareas(titulo,ts,nota){
   $('overlay').innerHTML='<div class="overlay" role="dialog" aria-modal="true"><div class="sheet"><div class="grab"></div><h3>'+esc(titulo)+'</h3>'+
     (nota?'<p class="hoja-nota">'+esc(nota)+'</p>':'')+
@@ -4944,7 +4964,7 @@ function enlazar(){
     });
   });
   document.querySelectorAll('#app [data-mt]').forEach(function(b){
-    b.addEventListener('click',function(){var id=+b.getAttribute('data-mt');if(id)editar(id);});
+    b.addEventListener('click',function(){var id=+b.getAttribute('data-mt');if(id)abrirDetalle(id);});
   });
   document.querySelectorAll('#app [data-a="tlExpandir"]').forEach(function(b){
     b.addEventListener('click',function(){TL.expandida=true;render();});
@@ -4975,7 +4995,7 @@ function enlazar(){
   /* tarjeta «Ahora»: abre la próxima tarea del día */
   var nx=document.querySelector('[data-next]');
   if(nx)nx.addEventListener('click',function(){
-    var id=+nx.getAttribute('data-next');if(id)editar(id);});
+    var id=+nx.getAttribute('data-next');if(id)abrirDetalle(id);});
   /* Hoy y Mañana se abren como hoja desde la tarjeta del dashboard (data-a en la tarjeta) */
   var nt=document.querySelector('[data-a=nuevaTarea]');
   if(nt)nt.addEventListener('click',function(){
@@ -5079,59 +5099,20 @@ function enlazar(){
     var k=inp.getAttribute('data-col');
     inp.addEventListener('input',function(){S.colores=S.colores||{};S.colores[k]=inp.value;});
     inp.addEventListener('change',function(){S.colores=S.colores||{};S.colores[k]=inp.value;guardar();render();toast('Color actualizado');});});
-  document.querySelectorAll('input[data-rtel]').forEach(function(inp){
-    inp.addEventListener('change',function(){
-      var r=respPorId(+inp.getAttribute('data-rtel'));
-      if(r){r.tel=(inp.value||'').trim();guardar();toast('Teléfono guardado');}
-    });});
-  document.querySelectorAll('input[data-rnom]').forEach(function(inp){
-    inp.addEventListener('change',function(){
-      var r=respPorId(+inp.getAttribute('data-rnom'));
-      if(r){var n=(inp.value||'').trim();if(n){r.nombre=n;guardar();toast('Nombre guardado');}}
-    });});
-  document.querySelectorAll('input[data-rcargo]').forEach(function(inp){
-    inp.addEventListener('change',function(){
-      var r=respPorId(+inp.getAttribute('data-rcargo'));
-      if(r){r.cargo=(inp.value||'').trim();guardar();toast('Cargo guardado');}
-    });});
-  var ra=$('r-add');if(ra)ra.addEventListener('click',addResponsable);
-  var rvb=$('r-enviar');if(rvb)rvb.addEventListener('click',function(){S.ui.vista='enviar';S.ui.grupoAbierto=0;guardar();render();});
-  /* vista: tareas agrupadas por responsable */
-  var evb=$('env-back');if(evb)evb.addEventListener('click',function(){S.ui.vista='resp';guardar();render();});
-  var evt=$('env-todos');if(evt)evt.addEventListener('click',enviarATodos);
-  var evc=$('env-todas');if(evc)evc.addEventListener('click',function(){S.ui.envCumplidas=!S.ui.envCumplidas;guardar();render();});
-  document.querySelectorAll('[data-a=grupo-enviar]').forEach(function(b){
-    b.addEventListener('click',function(){enviarGrupo(+b.getAttribute('data-id'));});});
-  document.querySelectorAll('[data-a=grupo-ver]').forEach(function(b){
-    b.addEventListener('click',function(){var id=+b.getAttribute('data-id');
-      S.ui.grupoAbierto=(+S.ui.grupoAbierto===id)?0:id;guardar();render();});});
-  var ri=$('r-import');if(ri)ri.addEventListener('click',function(){importarContacto('ficha');});
-  var air=$('a-irresp');if(air)air.addEventListener('click',function(){S.ui.vista='resp';guardar();render();});
-  /* crear responsable al vuelo dentro del formulario de tarea */
-  var fnr=$('f-nuevoresp');if(fnr)fnr.addEventListener('click',function(){abrirNuevoResp(!UIf.respAbierto);});
-  var rng=$('rn-guardar');if(rng)rng.addEventListener('click',crearRespDesdeForm);
-  var rnc=$('rn-cancelar');if(rnc)rnc.addEventListener('click',function(){
-    UIf.respNombre='';UIf.respCargo='';UIf.respTel='';abrirNuevoResp(false);});
-  var rni=$('rn-import');if(rni)rni.addEventListener('click',function(){importarContacto('nuevo');});
-  ['rn-nom','rn-cargo','rn-tel'].forEach(function(id){
-    var el=$(id);if(!el)return;
-    el.addEventListener('input',function(){
-      if(id==='rn-nom')UIf.respNombre=el.value;
-      if(id==='rn-cargo')UIf.respCargo=el.value;
-      if(id==='rn-tel')UIf.respTel=el.value;
-    });
-  });
   /* fotos de los responsables */
   document.querySelectorAll('[data-a=resp-foto]').forEach(function(b){
     b.addEventListener('click',function(e){e.stopPropagation();
       window.__respFotoId=+b.getAttribute('data-id');
-      var inp=$('f-respfoto');if(inp){inp.value='';try{inp.click();}catch(err){toast('No se pudo abrir la galería');}}});});
+      var inp=$('f-respfoto');if(inp){inp.value='';try{inp.click();}catch(err){toast('No se pudo abrir la galer\u00eda');}}});});
   document.querySelectorAll('[data-a=resp-fotodel]').forEach(function(b){
     b.addEventListener('click',function(e){e.stopPropagation();
       var r=respPorId(+b.getAttribute('data-id'));
       if(r){r.foto='';guardar();render();toast('Foto quitada');}});});
   document.querySelectorAll('[data-a=resp-del]').forEach(function(b){
     b.addEventListener('click',function(e){e.stopPropagation();eliminarResponsable(+b.getAttribute('data-id'));});});
+  /* editar responsable: hoja propia (fuera de la fila, para no estorbar) */
+  document.querySelectorAll('[data-a=resp-editar]').forEach(function(b){
+    b.addEventListener('click',function(e){e.stopPropagation();hojaRespEdit(+b.getAttribute('data-id'));});});
   if($('notif-estado'))actualizaEstadoNotif();
   if($('ct-estado'))actualizaEstadoContactos();
   initSwipe();
