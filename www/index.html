@@ -1160,7 +1160,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 "use strict";
 var K='mtp_organizador_tareas';
 /* === v1.8.0: actualizacion automatica desde GitHub Releases === */
-var VER_APP='1.8.3';
+var VER_APP='1.8.4';
 var ACTU={chk:0};
 var ACTU_TIPS=[
   'Toca una tarea para ver sus detalles sin entrar a editarla.',
@@ -1455,9 +1455,9 @@ function chequearAct(auto){
     if(!S||!S.sesion)return;
     if(!S.actUp)return;
     if(!window.cdpActualizador||!cdpActualizador.buscar)return;
-    if(auto){ /* consulta de fondo: como mucho una vez cada 6 h */
+    if(auto){ /* consulta de fondo: cada vez que abres/vuelves (tope 5 min por si se dispara dos veces) */
       var ahora=Date.now();
-      if(ahora-(S.actChkTS||0)<6*60*60*1000)return;
+      if(ahora-(S.actChkTS||0)<5*60*1000)return;
       S.actChkTS=ahora;
       try{localStorage.setItem(K,JSON.stringify(S));}catch(e){}
     }
@@ -3612,9 +3612,9 @@ function vistaAjustes(){
       '<p style="font-size:13px;color:var(--sub);margin:2px 0 6px">La app mira en GitHub si hay una versión más nueva y ofrece bajarla e instalarla con un toque. Al final Android pedirá su confirmación para instalar.</p>'+
       '<label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer">'+
         '<input type="checkbox" id="a-actup" '+(S.actUp?'checked':'')+' style="width:20px;height:20px;accent-color:var(--pri)">'+
-        '<span style="font-weight:700">Buscar actualizaciones al abrir <small style="font-weight:400;color:var(--sub);display:block">Como mucho una consulta cada 6 horas</small></span></label>'+
+        '<span style="font-weight:700">Buscar actualizaciones al abrir <small style="font-weight:400;color:var(--sub);display:block">Comprueba cada vez que abres o vuelves a la app</small></span></label>'+
       '<button class="btn sec" id="a-actnow" style="margin-top:6px">🔎 Verificar ahora</button>'+
-      '<p style="font-size:12px;color:var(--sub);margin:10px 0 0">Versión instalada: <b>1.8.3</b></p></div>',
+      '<p style="font-size:12px;color:var(--sub);margin:10px 0 0">Versión instalada: <b>1.8.4</b></p></div>',
     cuenta: '<h2 class="sec">Cuenta</h2><div class="tar" style="display:flex;align-items:center;gap:12px">'+
       '<span class="avatar" style="width:46px;height:46px;font-size:19px;border-radius:14px;background:var(--pri)">'+esc(inicial(S.sesion))+'</span>'+
       '<div><div style="font-weight:800;font-size:17px">'+esc(S.sesion)+'</div>'+
