@@ -1159,7 +1159,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 "use strict";
 var K='mtp_organizador_tareas';
 /* === v1.8.0: actualizacion automatica desde GitHub Releases === */
-var VER_APP='1.8.0';
+var VER_APP='1.8.1';
 var ACTU={chk:0};
 var ACTU_TIPS=[
   'Toca una tarea para ver sus detalles sin entrar a editarla.',
@@ -3532,7 +3532,7 @@ function refrescarVista(){
   try{window.scrollTo(0,y);}catch(e){}
 }
 /* pestañas de Ajustes: cada temática tiene su propia pestaña */
-var AJ_TABS=[['apariencia','🎨','Apariencia'],['avisos','🔔','Avisos'],['resumen','📊','Vista Hoy'],['datos','💾','Datos'],['cuenta','👤','Cuenta']];
+var AJ_TABS=[['apariencia','🎨','Apariencia'],['avisos','🔔','Avisos'],['calendario','📅','Calendario'],['resumen','📊','Vista Hoy'],['datos','💾','Datos'],['cuenta','👤','Cuenta']];
 function ajTabsHTML(act){
   return '<div class="aj-tabs" role="tablist">'+AJ_TABS.map(function(t){
     return '<button type="button" role="tab" data-ajtab="'+t[0]+'" aria-selected="'+(act===t[0])+'" class="'+(act===t[0]?'on':'')+'">'+t[1]+' '+t[2]+'</button>';
@@ -3560,8 +3560,8 @@ function vistaAjustes(){
       '<h2 class="sec">📇 Contactos del móvil</h2><div class="tar">'+
       '<p style="font-size:13px;color:var(--sub);margin:2px 0 8px">Permite leer tu agenda para crear responsables de un toque: se rellenan el nombre y el teléfono.</p>'+
       '<div id="ct-estado" style="font-size:13px;font-weight:700;margin-bottom:10px">Comprobando…</div>'+
-      '<button class="btn sec" id="a-ctperm">📇 Activar lectura de contactos</button></div>'+
-      '<h2 class="sec">📅 Calendario del teléfono</h2><div class="tar">'+
+      '<button class="btn sec" id="a-ctperm">📇 Activar lectura de contactos</button></div>',
+    calendario: '<h2 class="sec">📅 Calendario del teléfono</h2><div class="tar">'+
       '<p style="font-size:13px;color:var(--sub);margin:2px 0 8px">Conecta tu agenda con el calendario del móvil: tus tareas con fecha aparecen como eventos del calendario, y los eventos que agende Muse (o cualquier otra app) puedes traerlos aquí con 📥. Todo queda en el teléfono, sin internet.</p>'+
       '<div id="cal-estado" style="font-size:13px;font-weight:700;margin-bottom:10px">Comprobando…</div>'+
       '<label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer">'+
