@@ -84,8 +84,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pri);box
 .avatar{display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;flex-shrink:0}
 .avatar.av-foto{object-fit:cover;padding:0;display:block}
 .borr{background:none;border:none;color:var(--sub);font-size:16px;padding:2px 4px;margin-top:1px}
-.acc{display:flex;flex-direction:row;gap:5px;flex-shrink:0;align-items:center}
-.acc button{width:28px;height:28px;border-radius:9px;border:none;font-size:14px;display:flex;align-items:center;justify-content:center}
+.acc{display:flex;flex-direction:row;gap:6px;flex-shrink:0;align-items:center}
+.acc button{width:36px;height:36px;border-radius:11px;border:none;font-size:16px;display:flex;align-items:center;justify-content:center}
 .acc .ed{background:var(--chip);color:var(--pri)}
 .acc .el{background:var(--peli-soft);color:var(--peli)}
 .acc .sh{background:var(--ok-soft);color:var(--ok)}
@@ -1162,7 +1162,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 "use strict";
 var K='mtp_organizador_tareas';
 /* === v1.8.0: actualizacion automatica desde GitHub Releases === */
-var VER_APP='1.8.5';
+var VER_APP='1.8.6';
 var ACTU={chk:0};
 var ACTU_TIPS=[
   'Toca una tarea para ver sus detalles sin entrar a editarla.',
@@ -1776,13 +1776,14 @@ function cumplirCal(t){
 function posponer(id,cuando){
   var t=porId(id);if(!t)return;
   function dd(n){return String(n).padStart(2,'0');}
+  var nf=t.fecha,nh=t.hora;
   if(cuando==='1h'){
     var base=(t.fecha&&t.hora)?tsOf(t.fecha,t.hora)+3600000:0;
     if(!base){var z=new Date();z.setMinutes(0,0,0);base=z.getTime()+3600000;}
     if(base<=(new Date()).getTime())base=tsOf(sumar(hoyISO(),1),'09:00');
-    var q=new Date(base);t.fecha=iso(q);t.hora=dd(q.getHours())+':'+dd(q.getMinutes());
+    var q=new Date(base);nf=iso(q);nh=dd(q.getHours())+':'+dd(q.getMinutes());
   } else if(cuando==='manana'){
-    t.fecha=sumar(t.fecha||hoyISO(),1);if(!t.hora)t.hora='09:00';
+    nf=sumar(t.fecha||hoyISO(),1);if(!nh)nh='09:00';
   } else {
     var part=t.fecha||hoyISO(),f=sumar(part,30);
     for(var i=1;i<=30;i++){
@@ -1790,11 +1791,29 @@ function posponer(id,cuando){
       var choca=tareasDeDia(ff).some(function(x){return x.id!==t.id&&x.hora&&x.hora===t.hora;});
       if(!choca){f=ff;break;}
     }
-    t.fecha=f;if(!t.hora)t.hora='09:00';
+    nf=f;if(!nh)nh='09:00';
   }
-  if(t.rec)t.rec=''; /* posponer rompe la serie: se vuelve puntual */
-  guardar();render();
-  toast('⏱ Pospuesta a '+linda(t.fecha)+(t.hora?' '+t.hora:''));
+  function aplicar(puntual){
+    t.fecha=nf;t.hora=nh;
+    if(puntual)t.rep='';
+    guardar();render();
+    toast('\u23f1 Pospuesta a '+linda(nf)+(nh?' '+nh:''));
+  }
+  /* tarea repetida: preguntar cada vez que se pospone ( decision de Manuel, v1.8.6 ) */
+  if(t.rep){
+    var NOM={diaria:'todos los d\u00edas',laborables:'de lunes a viernes',semanal:'cada semana',quincenal:'cada 2 semanas',mensual:'cada mes'};
+    var w=document.createElement('div');w.className='modal';w.setAttribute('role','dialog');w.setAttribute('aria-modal','true');
+    w.innerHTML='<div class="box"><div class="mi warn">\u23f0</div><h4>Tarea repetida</h4>'+
+      '<p>'+esc(t.titulo||'')+' se repite '+(NOM[t.rep]||t.rep)+'. La nueva fecha ser\u00eda el '+linda(nf)+(nh?' a las '+nh:'')+'. \u00bfQu\u00e9 hago con la serie?</p>'+
+      '<div class="btns"><button class="mno">Volverla puntual</button><button class="msi">Mover la serie</button></div></div>';
+    document.body.appendChild(w);
+    function cerrarQ(){if(w.parentNode)w.parentNode.removeChild(w);}
+    w.querySelector('.msi').onclick=function(){cerrarQ();aplicar(false);};
+    w.querySelector('.mno').onclick=function(){cerrarQ();aplicar(true);};
+    w.addEventListener('click',function(e){if(e.target===w)cerrarQ();});
+    return;
+  }
+  aplicar(false);
 }
 /* red de seguridad en primer plano: si la alarma nativa falla, el aviso sale igual
    con la app abierta (mismo id de notificación → no se duplica con la alarma) */
@@ -3616,7 +3635,7 @@ function vistaAjustes(){
         '<input type="checkbox" id="a-actup" '+(S.actUp?'checked':'')+' style="width:20px;height:20px;accent-color:var(--pri)">'+
         '<span style="font-weight:700">Buscar actualizaciones al abrir <small style="font-weight:400;color:var(--sub);display:block">Comprueba cada vez que abres o vuelves a la app</small></span></label>'+
       '<button class="btn sec" id="a-actnow" style="margin-top:6px">🔎 Verificar ahora</button>'+
-      '<p style="font-size:12px;color:var(--sub);margin:10px 0 0">Versión instalada: <b>1.8.5</b></p></div>',
+      '<p style="font-size:12px;color:var(--sub);margin:10px 0 0">Versión instalada: <b>1.8.6</b></p></div>',
     cuenta: '<h2 class="sec">Cuenta</h2><div class="tar" style="display:flex;align-items:center;gap:12px">'+
       '<span class="avatar" style="width:46px;height:46px;font-size:19px;border-radius:14px;background:var(--pri)">'+esc(inicial(S.sesion))+'</span>'+
       '<div><div style="font-weight:800;font-size:17px">'+esc(S.sesion)+'</div>'+

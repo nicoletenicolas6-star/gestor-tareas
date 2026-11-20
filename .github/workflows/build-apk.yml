@@ -65,7 +65,7 @@ jobs:
       - name: Preparar artefacto
         run: |
           mkdir -p apk
-          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.8.5-debug.apk
+          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.8.6-debug.apk
           ls -la apk/
 
       - name: Subir artefacto
@@ -77,17 +77,14 @@ jobs:
       - name: Publicar release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.8.5-ci
-          name: Gestor de Tareas v1.8.5 (debug)
+          tag_name: v1.8.6-ci
+          name: Gestor de Tareas v1.8.6 (debug)
           body: |
             APK debug generada automáticamente por GitHub Actions.
 
             APK debug generada automáticamente por GitHub Actions.
 
-            n1.8.5: tocar una tarea del dashboard abre el dialogo informativo (con el
-            boton claro de estado), y las filas de responsables quedan limpias: foto,
-            nombre, su enlace de tareas, editar con el lapiz y eliminar en la misma linea.
-            esta versión instala ENCIMA de la anterior sin desinstalar ni perder nada:
-            la app instalada detecta esta actualización sola, la descarga con la barra
-            de progreso y abre el instalador de Android.
+            n1.8.6: posponer una tarea repetida ahora PREGUNTA que hacer con la serie
+            (mover la serie entera o volverla puntual), y los botones de acciones de
+            cada tarea son mas grandes y faciles de tocar.
           files: apk/*.apk
