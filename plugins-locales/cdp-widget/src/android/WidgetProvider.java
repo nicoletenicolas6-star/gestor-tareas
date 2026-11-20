@@ -1,5 +1,7 @@
 package com.tareas.notif;
 
+import com.mitienda.pos.tareas.R;
+
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
