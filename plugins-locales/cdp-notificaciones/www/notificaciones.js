@@ -24,5 +24,7 @@ module.exports = {
     calInsertar: function (ev, ok, fail) { call('calInsertar', [ev || {}], ok, fail); },
     calBorrar: function (evId, ok, fail) { call('calBorrar', [evId], ok, fail); },
     /* desde/hasta en milisegundos; devuelve [{evId,titulo,desc,fecha,hora,allDay,inicio,mio}] */
-    calEventos: function (desde, hasta, ok, fail) { call('calEventos', [desde, hasta], ok, fail); }
+    calEventos: function (desde, hasta, ok, fail) { call('calEventos', [desde, hasta], ok, fail); },
+    /* texto recibido via Compartir -> Organizador (devuelve '' si no hay nada) */
+    leerCompartido: function (ok, fail) { call('leerCompartido', [], ok, fail); }
 };

@@ -40,6 +40,8 @@ public class Notificaciones extends CordovaPlugin {
     private static final int REQ_NOTIF = 1;
     private static final int REQ_MIC = 2;
     private static final int REQ_CAL = 3;
+    /* texto recibido por ACTION_SEND (Compartir -> Organizador) */
+    public static volatile String textoShare = null;
     private CallbackContext permCb;
     private CallbackContext tocarCb;
     private int avisoTarea = 0;
@@ -53,12 +55,26 @@ public class Notificaciones extends CordovaPlugin {
             Intent i = cordova.getActivity().getIntent();
             if (i != null) avisoTarea = i.getIntExtra("tarea", 0);
         } catch (Throwable ignored) { }
+        try {
+            Intent is = cordova.getActivity().getIntent();
+            if (is != null && Intent.ACTION_SEND.equals(is.getAction())) {
+                String s0 = is.getStringExtra(Intent.EXTRA_TEXT);
+                if (s0 != null && s0.trim().length() > 0) textoShare = s0.trim();
+            }
+        } catch (Throwable ignored) { }
     }
 
     @Override
     public void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (intent == null) return;
+        try {
+            if (Intent.ACTION_SEND.equals(intent.getAction()) && intent.getType() != null
+                    && intent.getType().contains("text/")) {
+                String st = intent.getStringExtra(Intent.EXTRA_TEXT);
+                if (st != null && st.trim().length() > 0) textoShare = st.trim();
+            }
+        } catch (Throwable ignored) { }
         int t = intent.getIntExtra("tarea", 0);
         if (t > 0) {
             avisoTarea = t;
@@ -270,6 +286,12 @@ public class Notificaciones extends CordovaPlugin {
                     } catch (Throwable e) { cb.error(msg(e)); }
                 }
             });
+            return true;
+        }
+        if ("leerCompartido".equals(accion)) {
+            String s1 = textoShare;
+            textoShare = null;
+            cb.success(s1 == null ? "" : s1.trim());
             return true;
         }
         if ("estado".equals(accion)) {

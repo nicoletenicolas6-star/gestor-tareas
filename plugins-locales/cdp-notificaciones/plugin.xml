@@ -45,5 +45,19 @@
         <source-file src="src/android/Notificaciones.java" target-dir="src/com/tareas/notif" />
         <source-file src="src/android/NotifReceiver.java" target-dir="src/com/tareas/notif" />
         <source-file src="src/android/BootReceiver.java" target-dir="src/com/tareas/notif" />
+
+        <config-file target="AndroidManifest.xml" parent="/manifest/application">
+            <activity android:name="com.tareas.notif.ShareActivity" android:label="Organizador"
+                android:exported="true" android:excludeFromRecents="true"
+                android:theme="@android:style/Theme.Translucent.NoTitleBar">
+                <intent-filter>
+                    <action android:name="android.intent.action.SEND" />
+                    <category android:name="android.intent.category.DEFAULT" />
+                    <data android:mimeType="text/plain" />
+                </intent-filter>
+            </activity>
+        </config-file>
+
+        <source-file src="src/android/ShareActivity.java" target-dir="src/com/tareas/notif" />
     </platform>
 </plugin>
