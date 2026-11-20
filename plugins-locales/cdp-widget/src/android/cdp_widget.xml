@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cdp_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5FFFFFF"
+    android:padding="10dp">
+
+    <TextView
+        android:id="@+id/cdp_widget_tit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Organizador"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="#FF1F5E3C" />
+
+    <TextView
+        android:id="@+id/cdp_widget_txt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="13sp"
+        android:textColor="#FF1B1B1B"
+        android:lineSpacingExtra="2dp" />
+</LinearLayout>

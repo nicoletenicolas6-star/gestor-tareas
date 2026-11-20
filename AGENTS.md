@@ -83,4 +83,9 @@
   - **Matriz de Eisenhower** en Estadisticas (urgente = vencida o para hoy/manana; importante = pri alta) y **Kanban** (`S.ui.vTareas='kanban'`, 3 columnas Pendiente/Hoy/Hecha movidas con botones ⇦⇨ via `kanbanMueve()`; drag entre columnas queda para una versión futura).
   - **Rediseño (subset M3)**: sin degradados de sistema (todo color plano `var(--pri)`), ring 64px, nav.tab 12px/24px/48px con pildora, FAB 56px, una sola alerta en Hoy con boton "Ver las N" (`ver-venc`), "Ahora" subida tras el saludo, focus-visible, `prefers-reduced-motion` respetado en el snackbar.
   - **Share intent (14.1)**: `com.tareas.notif.ShareActivity` propio (ACTION_SEND text/plain, manifesto via config-file del plugin) guarda `Notificaciones.textoShare` y abre la app; JS lo recoge con `leerCompartido()` al arrancar (+0,9s) y en resume -> `crearRapido()` (bandeja o con fecha si parseNatural entiende).
-  - **No entra** (documentado): widget nativo (pt.10), voz a texto local (13.3 parcial), drag entre columnas, nube/Todoist/etc.
+  - **No entra de v1.4.0** (luego implementado en v1.5.0 el widget): voz a texto local (13.3 parcial), drag entre columnas Kanban, nube/Todoist/etc.
+- **v1.5.0 (widget de Android, pt.10)**: plugin local **`cdp-widget`** (paquete `com.tareas.notif`):
+  - **`CdpWidget.java`**: accion `actualizar` — guard el JSON (`{cuando, lineas:[{h,t}]}`) en SharedPreferences `cdp_widget` y llama `WidgetProvider.refresh(ctx)`.
+  - **`WidgetProvider.java`** (`AppWidgetProvider`): pinta RemoteViews (`R.layout.cdp_widget`) leyendo SharedPreferences; hasta 8 lineas (vencidas con ⚠ arriba, luego las de hoy por hora). Al tocar abre la app (`getLaunchIntentForPackage`). `updatePeriodMillis` 30 min (solo re-pinta lo ya guardado; los datos cambian cuando la app llama `actualizar`).
+  - **App → widget**: en `guardar()` se llama `widgetPush()` — si existe `window.cdpWidget`, envia `widgetDatos()` (tareas de hoy no hechas, orden por hora, mas vencidas; ocurrencias repetidas marcadas "·repite"). Tambien se llama al arrancar. Sin plugin (navegador/preview) es no-op.
+  - Para anadirlo: pantalla de inicio → mantener pulsado → Widgets → Organizador.

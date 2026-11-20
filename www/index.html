@@ -1368,6 +1368,29 @@ function guardar(){
   copiaAuto();
   syncNotif();
   syncCal();
+  widgetPush();
+}
+/* === widget de android (pt.10): la app le pasa las tareas de hoy al plugin === */
+function widgetDatos(){
+  try{
+    var h=hoyISO(),lineas=[],ts=tareasDeDia(h).filter(function(t){return !t.hecha;});
+    ts.sort(function(a,b){var ha=horaMinutos(a.hora),hb=horaMinutos(b.hora);
+      return (ha===null?9999:ha)-(hb===null?9999:hb);});
+    ts.slice(0,6).forEach(function(t){
+      lineas.push({h:t.hora?t.hora:'\u2014',t:(t.titulo||'Nota de voz')+(t.__oc?' \u00b7repite':'')});
+    });
+    var nv=0;
+    U().tareas.forEach(function(t){if(!t.hecha&&!t.inbox&&t.fecha&&t.fecha<h){lineas.unshift({h:'\u26a0',t:'Vencida: '+(t.titulo||'Nota de voz')});nv++;}});
+    var uv=lineas.length;
+    if(uv>8)return {cuando:linda(h)+' \u00b7 '+uv+' pendientes',lineas:lineas.slice(0,8)};
+    return {cuando:lineas.length?linda(h):'Nada para hoy',lineas:lineas.slice(0,8)};
+  }catch(e){return {cuando:'',lineas:[]};}
+}
+function widgetPush(){
+  try{
+    if(!window.cdpWidget||!cdpWidget.actualizar)return;
+    cdpWidget.actualizar(JSON.stringify(widgetDatos()),function(){},function(){});
+  }catch(e){}
 }
 /* === copia de seguridad automatica (pt.11): clave aparte, rotativa, max 7 === */
 function copiasBackup(){try{return JSON.parse(localStorage.getItem('mtp_backup_v1')||'{}')||{};}catch(e){return {};}}
@@ -5244,6 +5267,7 @@ var inpf=document.createElement('input');inpf.type='file';inpf.id='f-respfoto';
 inpf.accept='image/*';inpf.style.display='none';document.body.appendChild(inpf);
 try{ render(); }catch(e){ console.error('render',e); toast('Error al dibujar: '+e.message); }
 setTimeout(function(){try{leerCompartido();}catch(e){}},900);
+try{ widgetPush(); }catch(e){}
 try{ importarCalAuto(); }catch(e){ console.error('calAuto',e); }
 if(!S.sesion)carga('Cargando…',650); else carga('Un momento…',500);
 /* red de seguridad: si algo falla, el cargador nunca se queda para siempre */

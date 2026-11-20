@@ -34,7 +34,7 @@ jobs:
         run: cordova platform add android@12.0.1
 
       - name: Instalar plugins locales
-        run: cordova plugin add plugins-locales/cdp-notificaciones plugins-locales/cdp-contactos plugins-locales/cordova-plugin-saf-mediastore
+        run: cordova plugin add plugins-locales/cdp-notificaciones plugins-locales/cdp-contactos plugins-locales/cdp-widget plugins-locales/cordova-plugin-saf-mediastore
         env:
           npm_config_ignore_scripts: 'true'
 
@@ -47,7 +47,7 @@ jobs:
       - name: Preparar artefacto
         run: |
           mkdir -p apk
-          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.4.0-debug.apk
+          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.5.0-debug.apk
           ls -la apk/
 
       - name: Subir artefacto
@@ -59,8 +59,8 @@ jobs:
       - name: Publicar release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.0-ci
-          name: Gestor de Tareas v1.4.0 (debug)
+          tag_name: v1.5.0-ci
+          name: Gestor de Tareas v1.5.0 (debug)
           body: |
             APK debug generada automáticamente por GitHub Actions.
 
