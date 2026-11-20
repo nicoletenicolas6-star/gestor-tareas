@@ -33,8 +33,24 @@ jobs:
       - name: Añadir plataforma Android
         run: cordova platform add android@12.0.1
 
+      - name: Firma estable de CI (keystore debug persistente)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p ~/.android /tmp/keys
+          if gh release download ci-keys --repo "$GITHUB_REPOSITORY" --pattern "ci-debug.keystore" --output-dir /tmp/keys >/dev/null 2>&1 && [ -s /tmp/keys/ci-debug.keystore ]; then
+            cp /tmp/keys/ci-debug.keystore ~/.android/debug.keystore
+            echo "Keystore estable restaurado del release ci-keys"
+          else
+            keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10950 -dname "CN=Android Debug,O=Android,C=US"
+            cp ~/.android/debug.keystore /tmp/keys/ci-debug.keystore
+            gh release view ci-keys --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create ci-keys --repo "$GITHUB_REPOSITORY" --title "Llave de firma CI (no instalar)" --notes "Keystore debug estable para que la actualizacion automatica conserve la firma y no pida desinstalar la app. NO BORRAR este release."
+            gh release upload ci-keys --repo "$GITHUB_REPOSITORY" /tmp/keys/ci-debug.keystore --clobber
+            echo "Keystore nuevo generado y guardado en el release ci-keys"
+          fi
+
       - name: Instalar plugins locales
-        run: cordova plugin add plugins-locales/cdp-notificaciones plugins-locales/cdp-contactos plugins-locales/cdp-widget plugins-locales/cordova-plugin-saf-mediastore
+        run: cordova plugin add plugins-locales/cdp-notificaciones plugins-locales/cdp-contactos plugins-locales/cdp-widget plugins-locales/cordova-plugin-saf-mediastore plugins-locales/cdp-actualizador
         env:
           npm_config_ignore_scripts: 'true'
 
@@ -47,7 +63,7 @@ jobs:
       - name: Preparar artefacto
         run: |
           mkdir -p apk
-          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.7.0-debug.apk
+          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.8.0-debug.apk
           ls -la apk/
 
       - name: Subir artefacto
@@ -59,14 +75,15 @@ jobs:
       - name: Publicar release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.7.0-ci
-          name: Gestor de Tareas v1.7.0 (debug)
+          tag_name: v1.8.0-ci
+          name: Gestor de Tareas v1.8.0 (debug)
           body: |
             APK debug generada automáticamente por GitHub Actions.
 
-            Incluye las mejoras de la Agenda: buscador, completar desde la agenda,
-            envío por WhatsApp y tareas recurrentes.
+            n1.8.0: la app se actualiza sola desde este release (busca versiones nuevas,
+            descarga con barra de progreso y consejos, y abre el instalador de Android).
 
-            Nota: al ser debug (sin el keystore de release), puede pedir instalarla
-            como app aparte si ya tienes la versión firmada instalada.
+            IMPORTANTE primera vez: como ahora la firma es estable, desinstala la versión
+            anterior ANTES de instalar esta; a partir de aquí las próximas actualizaciones
+            se instalan encima sin perder nada. Exporta una copia antes en Ajustes › Datos.
           files: apk/*.apk

@@ -1119,6 +1119,12 @@ html[data-tema=oscuro] .snack{background:#2E323B}
 button:focus-visible,a:focus-visible,[role=button]:focus-visible{outline:2.5px solid var(--pri);outline-offset:2px}
 input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
 @media(prefers-reduced-motion:reduce){.snack.on{animation:none}}
+/* v1.8.0: dialogo de actualizacion (consejos + barra de progreso) */
+.act-tips{margin-top:4px}
+.act-tips>div{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.45;padding:7px 9px;border-radius:12px;background:var(--pri-soft);margin-bottom:6px;color:var(--txt)}
+.act-tip-i{flex-shrink:0}
+.act-prog{height:8px;background:var(--bor);border-radius:999px;overflow:hidden;margin-top:10px}
+.act-prog i{display:block;height:100%;background:var(--pri);width:0%;transition:width .25s}
 </style>
 </head>
 <body>
@@ -1152,6 +1158,19 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 (function(){
 "use strict";
 var K='mtp_organizador_tareas';
+/* === v1.8.0: actualizacion automatica desde GitHub Releases === */
+var VER_APP='1.8.0';
+var ACTU={chk:0};
+var ACTU_TIPS=[
+  'Toca una tarea para ver sus detalles sin entrar a editarla.',
+  'Escribe la tarea como la dirías: «Llamar a Betty mañana a las 9».',
+  'En Tareas puedes cambiar entre lista y tablero de 3 columnas.',
+  'En Ajustes › Dashboard eliges qué tarjetas se ven en Hoy.',
+  'Desliza poco una tarea para posponerla una hora.',
+  'Comparte texto desde cualquier app y cae en la Bandeja.',
+  'En Ajustes › Datos activa la copia automática al día.',
+  'El widget mantiene las tareas de hoy a un vistazo.'
+];
 var COL=['#1E5AE8','#7A3FC4','#0E8A9A','#1F8A3C','#C25A00','#C02A6B','#5A6B7A','#B08900'];
 var TIPOS={mio:{n:'Mía',c:'#1E5AE8'},seg:{n:'Seguimiento',c:'#1F8A3C'},rev:{n:'A revisar',c:'#C25A00'}};
 var DIAS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -1201,7 +1220,7 @@ function formVacio(){return {id:0,titulo:'',nota:'',fecha:'',hora:'',rec:'',recH
 function coloresDef(){return {mio:'#1E5AE8',seg:'#1F8A3C',rev:'#C25A00'};}
 function defecto(){return {tema:'claro',sesion:null,usuarios:{},colores:coloresDef(),
   paleta:'oceano',acento:'',autoTema:false,amoled:false,cristal:false,
-  densidad:'comoda',radio:'redondo',texto:'normal',motion:true,tlModo:'compacta'};}
+  densidad:'comoda',radio:'redondo',texto:'normal',motion:true,tlModo:'compacta',actUp:true};}
 /* --- preferencias visuales: paletas, acento y acabado --- */
 var PALETAS=[
   {k:'oceano',n:'Océano',c1:'#1E5AE8',c2:'#0B3A8F'},
@@ -1332,6 +1351,8 @@ function cargar(){
   if(S.calSync===undefined)S.calSync=false;
   if(S.calAutoImp===undefined)S.calAutoImp=false;
   if(S.autoBackup===undefined)S.autoBackup=false;
+  if(typeof S.actUp!=='boolean')S.actUp=true;
+  if(!S.actChkTS)S.actChkTS=0;
   if(S.ui.vTareas===undefined)S.ui.vTareas='lista';
   if(S.ui.enfoqueAll===undefined)S.ui.enfoqueAll=false;
   if(S.motion===undefined)S.motion=true;
@@ -1414,6 +1435,94 @@ function widgetPush(){
   try{
     if(!window.cdpWidget||!cdpWidget.actualizar)return;
     cdpWidget.actualizar(JSON.stringify(widgetDatos()),function(){},function(){});
+  }catch(e){}
+}
+/* === v1.8.0: actualizar la app sola (GitHub Releases + consejos + progreso) === */
+function verNum(tag){
+  try{var m=String(tag||'').match(/(\d+)\.(\d+)\.(\d+)/);if(!m)return null;
+    return [+m[1],+m[2],+m[3]];}catch(e){return null;}
+}
+function hayNueva(tag){
+  var n=verNum(tag);if(!n)return false;
+  var a=verNum(VER_APP)||[0,0,0];
+  if(n[0]!==a[0])return n[0]>a[0];
+  if(n[1]!==a[1])return n[1]>a[1];
+  return n[2]>a[2];
+}
+function chequearAct(auto){
+  try{
+    if(!S||!S.sesion)return;
+    if(!S.actUp)return;
+    if(!window.cdpActualizador||!cdpActualizador.buscar)return;
+    if(auto){ /* consulta de fondo: como mucho una vez cada 6 h */
+      var ahora=Date.now();
+      if(ahora-(S.actChkTS||0)<6*60*60*1000)return;
+      S.actChkTS=ahora;
+      try{localStorage.setItem(K,JSON.stringify(S));}catch(e){}
+    }
+    cdpActualizador.buscar(function(r){
+      try{
+        if(!r)return;
+        var d=JSON.parse(r);
+        if(d&&d.tag&&hayNueva(d.tag)&&d.apk)dialogoAct(d);
+      }catch(e){}
+    },function(){
+      if(!auto)toast('No se pudo buscar actualizaciones (¿sin internet?)');
+    });
+  }catch(e){}
+}
+function dialogoAct(info){
+  try{
+    if($('overlay').innerHTML)return; /* no tapar otra hoja abierta */
+    var tips=ACTU_TIPS.slice(),elegidos=[];
+    while(elegidos.length<3&&tips.length)elegidos.push(tips.splice(Math.floor(Math.random()*tips.length),1)[0]);
+    var ver=String(info.tag||'').replace(/^v/,'').replace(/-ci$/,'');
+    $('overlay').innerHTML='<div class="overlay" role="dialog" aria-modal="true"><div class="sheet"><div class="grab"></div>'+
+      '<h3 style="margin:0 0 4px;font-size:18px">✨ Hay una nueva versión</h3>'+
+      '<div style="font-size:13px;color:var(--sub);margin-bottom:10px">La app encontró la versión <b>'+esc(ver)+'</b> y puede instalarse sola. Tus tareas se quedan como están.</div>'+
+      '<div class="act-tips">'+elegidos.map(function(t){return '<div><span class="act-tip-i">💡</span>'+esc(t)+'</div>';}).join('')+'</div>'+
+      '<div class="act-prog" id="act-bar"><i style="width:0%"></i></div>'+
+      '<div id="act-pct" style="font-size:12px;color:var(--sub);margin-top:5px">Esperando para descargar…</div>'+
+      '<div id="act-aviso" style="font-size:12px;color:var(--sub);margin-top:8px">💡 Antes de instalar, exporta una copia en Ajustes › Datos si quieres doble seguridad.</div>'+
+      '<button class="btn pri" id="act-ok" style="margin-top:10px;width:100%">⬇️ Descargar e instalar</button>'+
+      '<button class="btn sec" id="act-luego" style="margin-top:8px;width:100%">Más tarde</button></div></div>';
+    var ov=document.querySelector('.overlay');
+    if(ov)ov.addEventListener('click',function(e){if(e.target===ov&&ACTU.trabajando!==1)cerrarOverlay();});
+    $('act-luego').addEventListener('click',cerrarOverlay);
+    $('act-ok').addEventListener('click',function(){
+      var btn=$('act-ok');
+      ACTU.trabajando=1;
+      btn.disabled=true;btn.textContent='Descargando…';
+      cdpActualizador.descargar(info.apk,function(r){
+        try{
+          var d=JSON.parse(r);
+          if(d&&typeof d.p==='number'){
+            var bar=document.querySelector('#act-bar i'),pct=$('act-pct');
+            if(bar)bar.style.width=d.p+'%';
+            if(pct)pct.textContent='Descargando… '+d.p+'%';
+          } else if(d&&d.fin){
+            var bar2=document.querySelector('#act-bar i'),pct2=$('act-pct'),btn2=$('act-ok');
+            if(bar2)bar2.style.width='100%';
+            if(pct2)pct2.textContent='Descarga completa';
+            if(btn2){btn2.disabled=true;btn2.textContent='Abriendo instalador…';}
+            toast('Descarga lista: la descarga también quedó en la carpeta Descargas');
+            setTimeout(function(){
+              cdpActualizador.instalar(d.uri,function(){},function(){
+                toast('No se pudo abrir el instalador: mira la app Descargas');
+                ACTU.trabajando=0;
+                if(btn2){btn2.disabled=false;btn2.textContent='Reintentar instalación';}
+              });
+            },400);
+          }
+        }catch(e){}
+      },function(){
+        toast('No se pudo descargar (¿sin internet?)');
+        ACTU.trabajando=0;
+        var btn3=$('act-ok'),pct3=$('act-pct');
+        if(btn3){btn3.disabled=false;btn3.textContent='Reintentar descarga';}
+        if(pct3)pct3.textContent='La descarga falló, puedes reintentar';
+      });
+    });
   }catch(e){}
 }
 /* === copia de seguridad automatica (pt.11): clave aparte, rotativa, max 7 === */
@@ -3495,7 +3604,13 @@ function vistaAjustes(){
       '<label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer">'+
         '<input type="checkbox" id="a-backup" '+(S.autoBackup?'checked':'')+' style="width:20px;height:20px;accent-color:var(--pri)">'+
         '<span style="font-weight:700">Guardar una copia al día <small style="font-weight:400;color:var(--sub);display:block">Hasta 7 copias dentro del propio móvil; se activa la próxima vez que cambies una tarea</small></span></label>'+
-      '<button class="btn sec" id="a-restore">🗃 Restaurar copia</button></div>',
+      '<button class="btn sec" id="a-restore">🗃 Restaurar copia</button></div>'+
+      '<h2 class="sec">⬆️ Actualizaciones</h2><div class="tar">'+
+      '<p style="font-size:13px;color:var(--sub);margin:2px 0 6px">La app mira en GitHub si hay una versión más nueva y ofrece bajarla e instalarla con un toque. Al final Android pedirá su confirmación para instalar.</p>'+
+      '<label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer">'+
+        '<input type="checkbox" id="a-actup" '+(S.actUp?'checked':'')+' style="width:20px;height:20px;accent-color:var(--pri)">'+
+        '<span style="font-weight:700">Buscar actualizaciones al abrir <small style="font-weight:400;color:var(--sub);display:block">Como mucho una consulta cada 6 horas</small></span></label>'+
+      '<button class="btn sec" id="a-actnow" style="margin-top:6px">🔎 Verificar ahora</button></div>',
     cuenta: '<h2 class="sec">Cuenta</h2><div class="tar" style="display:flex;align-items:center;gap:12px">'+
       '<span class="avatar" style="width:46px;height:46px;font-size:19px;border-radius:14px;background:var(--pri)">'+esc(inicial(S.sesion))+'</span>'+
       '<div><div style="font-weight:800;font-size:17px">'+esc(S.sesion)+'</div>'+
@@ -4913,6 +5028,18 @@ function enlazar(){
     if(!window.cdpContactos){toast('No disponible en este entorno');return;}
     window.cdpContactos.pedirPermiso(function(r){toast(r==='otorgado'?'Contactos activados':'Permiso denegado');actualizaEstadoContactos();},
       function(){actualizaEstadoContactos();});});
+  /* actualizaciones (v1.8.0): interruptor y verificacion manual */
+  var au=$('a-actup');
+  if(au)au.addEventListener('change',function(){
+    S.actUp=au.checked;guardar();
+    toast(au.checked?'La app buscará actualizaciones al abrir':'Ya no buscará actualizaciones sola');
+  });
+  var an=$('a-actnow');
+  if(an)an.addEventListener('click',function(){
+    an.disabled=true;an.textContent='Buscando…';
+    chequearAct(false);
+    setTimeout(function(){var x=$('a-actnow');if(x){x.disabled=false;x.textContent='🔎 Verificar ahora';}},1500);
+  });
   /* calendario del telefono: toggle, sincronizar ahora y traer del calendario */
   var cs=$('a-calsync');
   if(cs){
@@ -5345,7 +5472,7 @@ document.addEventListener('backbutton',function(e){
   if(S.sesion&&S.ui.vista==='enviar'){S.ui.vista='resp';guardar();render();return;}
   if(S.sesion&&S.ui.vista!=='hoy'){S.ui.vista='hoy';guardar();render();return;}
   if(navigator.app&&navigator.app.exitApp)navigator.app.exitApp();},false);
-document.addEventListener('resume',function(){ if(S&&S.sesion){cargar();aplicarTema();syncNotif();importarCalAuto();leerCompartido();} },false);
+document.addEventListener('resume',function(){ if(S&&S.sesion){cargar();aplicarTema();syncNotif();importarCalAuto();leerCompartido();setTimeout(function(){try{chequearAct(true);}catch(e){}},8000);} },false);
 /* modo automático: revisa el reloj una vez por minuto */
 setInterval(function(){ if(S&&S.autoTema&&document.documentElement.getAttribute('data-tema')!==temaResuelto())aplicarTema(); },60000);
 
@@ -5360,6 +5487,8 @@ document.addEventListener('deviceready',function(){
     try{cdpNotificaciones.alTocar(function(t){abrirTareaDesdeAviso(+t);},function(){});}catch(e){}
   }
   try{ importarCalAuto(); }catch(e){ }
+  /* v1.8.0: buscar actualizacion al arrancar (retraso para no frenar el arranque) */
+  setTimeout(function(){try{chequearAct(true);}catch(e){}},12000);
 },false);
 
 /* arranque */
@@ -5465,7 +5594,7 @@ setTimeout(function(){ if($('carga')&&!$('carga').classList.contains('off')){ $(
   render=function(anim){ _render(anim); if(S&&S.sesion&&S.ui.vista==='ajustes'){ setTimeout(bindCfg,30); } };
 })();
   /* gancho de automatizacion/depuracion (neutral en produccion) */
-  try{window.__DBG={S:function(){return S;},U:function(){return U();},guardar:guardar,render:render,cargar:cargar,parseNatural:parseNatural,choquesDeDia:choquesDeDia,conflictoDe:conflictoDe,proximaHoraLibre:proximaHoraLibre,cargaDia:cargaDia,crearRapido:crearRapido,repOcurre:repOcurre,enfoqueTareas:function(h){return enfoqueTareas(h);},ordenarMiDia:ordenarMiDia,kanbanHTML:kanbanHTML,kanbanMueve:kanbanMueve,eliminar:eliminar,copiasBackup:copiasBackup,restaurarCopia:restaurarCopia,pomodoroIniciar:pomodoroIniciar,leerCompartido:leerCompartido,tareasDeDia:function(f){return tareasDeDia(f);},POM:function(){return POM;}};}catch(e){}
+  try{window.__DBG={S:function(){return S;},U:function(){return U();},guardar:guardar,render:render,cargar:cargar,parseNatural:parseNatural,choquesDeDia:choquesDeDia,conflictoDe:conflictoDe,proximaHoraLibre:proximaHoraLibre,cargaDia:cargaDia,crearRapido:crearRapido,repOcurre:repOcurre,enfoqueTareas:function(h){return enfoqueTareas(h);},ordenarMiDia:ordenarMiDia,kanbanHTML:kanbanHTML,kanbanMueve:kanbanMueve,eliminar:eliminar,copiasBackup:copiasBackup,restaurarCopia:restaurarCopia,pomodoroIniciar:pomodoroIniciar,leerCompartido:leerCompartido,tareasDeDia:function(f){return tareasDeDia(f);},POM:function(){return POM;},chequearAct:chequearAct}}catch(e){}
 })();
 </script>
 </body>

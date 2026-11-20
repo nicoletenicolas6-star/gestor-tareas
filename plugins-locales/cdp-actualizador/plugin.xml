@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android" id="cdp-actualizador" version="1.0.0">
+    <name>CdpActualizador</name>
+    <description>Actualizacion automatica: busca la ultima release de GitHub, baja la APK con progreso y lanza el instalador.</description>
+    <license>Apache 2.0</license>
+    <keywords>tareas,actualizacion,apk,gancho</keywords>
+
+    <js-module src="www/actualizador.js" name="Actualizador">
+        <clobbers target="cdpActualizador" />
+    </js-module>
+
+    <platform name="android">
+        <config-file target="res/xml/config.xml" parent="/*">
+            <feature name="CdpActualizador">
+                <param name="android-package" value="com.tareas.upd.Actualizador" />
+            </feature>
+        </config-file>
+
+        <config-file target="AndroidManifest.xml" parent="/manifest">
+            <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+        </config-file>
+
+        <source-file src="src/android/Actualizador.java" target-dir="src/com/tareas/upd" />
+    </platform>
+</plugin>

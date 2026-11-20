@@ -1,0 +1,11 @@
+{
+  "name": "cdp-actualizador",
+  "version": "1.0.0",
+  "description": "Actualizacion automatica de la app desde GitHub Releases: busca, descarga con progreso y lanza el instalador.",
+  "cordova": {
+    "id": "cdp-actualizador",
+    "platforms": ["android"]
+  },
+  "keywords": ["tareas", "actualizacion", "apk", "ecosystem:cordova", "cordova-android"],
+  "license": "Apache-2.0"
+}
