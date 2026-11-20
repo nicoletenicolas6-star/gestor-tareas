@@ -62,7 +62,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pri);box
 .swipe:last-child{border-bottom:none}
 .swipe-del{position:absolute;inset:0;background:var(--peli);color:#fff;display:flex;align-items:center;justify-content:flex-end;padding-right:16px;font-weight:800;font-size:13px;gap:6px;letter-spacing:.3px}
 .swipe-prog{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--peli);z-index:3;box-shadow:0 0 6px rgba(255,80,60,.7)}
-.tarea{position:relative;display:flex;align-items:flex-start;gap:10px;padding:11px 8px 11px 10px;background:var(--tar);border-left:4px solid var(--pri);transition:transform .18s ease;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+.tarea{position:relative;display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;padding:11px 8px 11px 10px;background:var(--tar);border-left:4px solid var(--pri);transition:transform .18s ease;touch-action:pan-y;-webkit-user-select:none;user-select:none}
 .tarea.done{border-left-color:var(--sub)!important}
 /* tarea */
 .chk{width:24px;height:24px;min-width:24px;border:2px solid var(--sub);border-radius:8px;background:none;position:relative;margin-top:1px;flex-shrink:0;padding:0}
@@ -84,8 +84,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pri);box
 .avatar{display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;flex-shrink:0}
 .avatar.av-foto{object-fit:cover;padding:0;display:block}
 .borr{background:none;border:none;color:var(--sub);font-size:16px;padding:2px 4px;margin-top:1px}
-.acc{display:flex;flex-direction:column;gap:5px;flex-shrink:0}
-.acc button{width:30px;height:30px;border-radius:9px;border:none;font-size:14px;display:flex;align-items:center;justify-content:center}
+.acc{display:flex;flex-direction:row;gap:6px;width:100%;justify-content:flex-end;margin-top:6px;flex-shrink:0}
+.acc button{width:28px;height:28px;border-radius:9px;border:none;font-size:14px;display:flex;align-items:center;justify-content:center}
 .acc .ed{background:var(--chip);color:var(--pri)}
 .acc .el{background:var(--peli-soft);color:var(--peli)}
 .acc .sh{background:var(--ok-soft);color:var(--ok)}
@@ -227,6 +227,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pri);box
 .hola:before,.hola:after{display:none}
 .hola .k{font-size:12px;opacity:1;font-weight:700;letter-spacing:.12em;text-transform:uppercase;position:relative;color:var(--sub)}
 .hola .t{font-size:27px;font-weight:900;margin-top:3px;letter-spacing:-.01em;position:relative;color:var(--txt)}
+.hola .saludo{color:var(--pri)}
 .hola .d{font-size:13px;opacity:1;margin-top:5px;text-transform:capitalize;position:relative;color:var(--sub)}
 .progreso{display:flex;align-items:center;gap:18px;margin-top:16px;position:relative}
 .ring{--p:0;position:relative;width:64px;height:64px;border-radius:50%;flex-shrink:0;background:conic-gradient(var(--pri) calc(var(--p)*1%),var(--bor) 0);display:flex;align-items:center;justify-content:center;box-shadow:none}
@@ -1381,13 +1382,25 @@ function widgetDatos(){
     ts.sort(function(a,b){var ha=horaMinutos(a.hora),hb=horaMinutos(b.hora);
       return (ha===null?9999:ha)-(hb===null?9999:hb);});
     ts.slice(0,6).forEach(function(t){
-      lineas.push({h:t.hora?t.hora:'\u2014',t:(t.titulo||'Nota de voz')+(t.__oc?' \u00b7repite':'')});
+      lineas.push({h:t.hora?t.hora:'\u2014',t:(t.titulo||'Nota de voz')+(t.__oc?' \u00b7repite':''),hecha:!!t.hecha});
     });
+    /* hechas de hoy al final, para que el widget las muestre tachadas mientras hay sitio */
+    if(lineas.length<8){
+      var hs=tareasDeDia(h).filter(function(t){return t.hecha;});
+      hs.sort(function(a,b){var ha=horaMinutos(a.hora),hb=horaMinutos(b.hora);
+        return (ha===null?9999:ha)-(hb===null?9999:hb);});
+      for(var i2=0;i2<hs.length&&lineas.length<8;i2++){
+        var th=hs[i2];lineas.push({h:th.hora?th.hora:'\u2014',t:(th.titulo||'Nota de voz'),hecha:true});
+      }
+    }
     var nv=0;
     U().tareas.forEach(function(t){if(!t.hecha&&!t.inbox&&t.fecha&&t.fecha<h){lineas.unshift({h:'\u26a0',t:'Vencida: '+(t.titulo||'Nota de voz')});nv++;}});
+    var acento='';
+    try{var cA=getComputedStyle(document.documentElement).getPropertyValue('--pri').trim();
+      if(/^#[0-9A-Fa-f]{6}$/.test(cA))acento=cA;}catch(eA){}
     var uv=lineas.length;
-    if(uv>8)return {cuando:linda(h)+' \u00b7 '+uv+' pendientes',lineas:lineas.slice(0,8)};
-    return {cuando:lineas.length?linda(h):'Nada para hoy',lineas:lineas.slice(0,8)};
+    if(uv>8)return {cuando:linda(h)+' \u00b7 '+uv+' pendientes',acento:acento,lineas:lineas.slice(0,8)};
+    return {cuando:lineas.length?linda(h):'Nada para hoy',acento:acento,lineas:lineas.slice(0,8)};
   }catch(e){return {cuando:'',lineas:[]};}
 }
 function widgetPush(){
@@ -2712,7 +2725,7 @@ function vistaHoy(){
   if(venc)foco.push('⏰ '+venc+' vencida'+(venc===1?'':'s'));
   if(revP)foco.push('🔍 '+revP+' por revisar');
   if(deleg)foco.push('👥 '+deleg+' delegada'+(deleg===1?'':'s'));
-var s='<div class="hola"><div class="k">'+esc(saludo())+'</div><div class="t">'+esc(S.sesion)+'</div>'+
+var s='<div class="hola"><div class="t"><span class="saludo">'+esc(saludo())+', </span>'+esc(S.sesion)+'</div>'+
     '<div class="d">'+DIAS[hoyFecha.getDay()]+', '+hoyFecha.getDate()+' de '+MESE[hoyFecha.getMonth()].toLowerCase()+'</div>'+
     '<div class="progreso" style="margin-top:14px"><div class="ring" style="--p:'+pct+'"><div class="in"><b>'+pct+'%</b><span>hoy</span></div></div>'+
     '<div class="txt"><b>'+hoyOK+' de '+hoyT.length+' hechas hoy</b><div>🔥 Racha: '+rc+' día'+(rc===1?'':'s')+'</div><div>'+hoyPen.length+' pendientes para hoy</div></div></div>'+

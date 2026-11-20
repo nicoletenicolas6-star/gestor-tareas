@@ -29,5 +29,7 @@
         <source-file src="src/android/WidgetProvider.java" target-dir="src/com/tareas/notif" />
         <resource-file src="src/android/cdp_widget_info.xml" target="res/xml/cdp_widget_info.xml" />
         <resource-file src="src/android/cdp_widget.xml" target="res/layout/cdp_widget.xml" />
+        <resource-file src="src/android/cdp_widget_row.xml" target="res/layout/cdp_widget_row.xml" />
+        <resource-file src="src/android/cdp_widget_bg.xml" target="res/drawable/cdp_widget_bg.xml" />
     </platform>
 </plugin>
