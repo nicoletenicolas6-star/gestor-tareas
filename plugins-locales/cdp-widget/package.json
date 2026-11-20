@@ -1,0 +1,10 @@
+{
+  "name": "cdp-widget",
+  "version": "1.0.0",
+  "description": "Widget de la pantalla principal: muestra las tareas de hoy sin abrir la app.",
+  "cordova": {
+    "id": "cdp-widget",
+    "platforms": ["android"]
+  },
+  "keywords": ["widget", "tareas", "agenda", "cordova"]
+}
