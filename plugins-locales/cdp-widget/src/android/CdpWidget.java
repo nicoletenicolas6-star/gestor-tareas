@@ -16,7 +16,8 @@ public class CdpWidget extends CordovaPlugin {
     @Override
     public boolean execute(String action, CordovaArgs args, final CallbackContext cb) throws JSONException {
         if ("actualizar".equals(action)) {
-            final String json = args.optString(0, "");
+            String json = "";
+            try { json = args.optString(0); } catch (Exception ignored) { }
             final Context ctx = cordova.getActivity().getApplicationContext();
             try {
                 ctx.getSharedPreferences("cdp_widget", Context.MODE_PRIVATE)
