@@ -38,15 +38,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p ~/.android /tmp/keys
-          if gh release download ci-keys --repo "$GITHUB_REPOSITORY" --pattern "ci-debug.keystore" --output-dir /tmp/keys >/dev/null 2>&1 && [ -s /tmp/keys/ci-debug.keystore ]; then
+          rm -f /tmp/keys/ci-debug.keystore
+          if gh release download ci-keys --repo "$GITHUB_REPOSITORY" --pattern "ci-debug.keystore" --dir /tmp/keys && [ -s /tmp/keys/ci-debug.keystore ]; then
             cp /tmp/keys/ci-debug.keystore ~/.android/debug.keystore
-            echo "Keystore estable restaurado del release ci-keys"
+            keytool -list -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | grep SHA1 || true
+            echo "RESULTADO: Keystore estable restaurado del release ci-keys (misma firma)"
           else
+            echo "RESULTADO: NO se pudo restaurar el keystore — se genera uno NUEVO (cambia la firma: la app instalada pedira desinstalar)"
             keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10950 -dname "CN=Android Debug,O=Android,C=US"
             cp ~/.android/debug.keystore /tmp/keys/ci-debug.keystore
             gh release view ci-keys --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create ci-keys --repo "$GITHUB_REPOSITORY" --title "Llave de firma CI (no instalar)" --notes "Keystore debug estable para que la actualizacion automatica conserve la firma y no pida desinstalar la app. NO BORRAR este release."
             gh release upload ci-keys --repo "$GITHUB_REPOSITORY" /tmp/keys/ci-debug.keystore --clobber
-            echo "Keystore nuevo generado y guardado en el release ci-keys"
           fi
 
       - name: Instalar plugins locales
