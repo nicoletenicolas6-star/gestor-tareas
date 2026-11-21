@@ -65,7 +65,7 @@ jobs:
       - name: Preparar artefacto
         run: |
           mkdir -p apk
-          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.9.0-debug.apk
+          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.9.1-debug.apk
           ls -la apk/
 
       - name: Subir artefacto
@@ -77,14 +77,14 @@ jobs:
       - name: Publicar release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.9.0-ci
-          name: Gestor de Tareas v1.9.0 (debug)
+          tag_name: v1.9.1-ci
+          name: Gestor de Tareas v1.9.1 (debug)
           body: |
             APK debug generada automáticamente por GitHub Actions.
 
             APK debug generada automáticamente por GitHub Actions.
 
-            n1.9.0: revision visual completa (fondo y tarjetas planas Material 3, CSS
+            n1.9.1: revision visual completa (fondo y tarjetas planas Material 3, CSS
             duplicado fusionado, botones con iconos SVG de sistema) y el TABLERO
             (Kanban) ahora se mueve ARRASTRANDO la tarjeta con el dedo entre las
             tres columnas (tambien siguen los botoncitos y tocar abre los detalles).
