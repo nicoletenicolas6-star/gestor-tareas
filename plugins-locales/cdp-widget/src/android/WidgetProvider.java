@@ -32,6 +32,7 @@ public class WidgetProvider extends AppWidgetProvider {
     private static final int COLOR_TXT2 = 0xFF6B7280;
     private static final int COLOR_VENCIDA = 0xFFC0392B;
     private static final int COLOR_CHECK_OFF = 0xFF9AA0A6;
+    private static final int COLOR_OK = 0xFF1F8A3C;
 
     @Override
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
@@ -87,6 +88,7 @@ public class WidgetProvider extends AppWidgetProvider {
                 String t = l.optString("t", "");
                 String c = l.optString("c", "");
                 boolean hecha = l.optBoolean("hecha", false);
+                int tid = l.optInt("id", 0); /* v1.9.3: para el check del widget */
                 if (h == null) h = "";
                 if (t == null) t = "";
                 if (t.length() == 0) continue;
@@ -105,8 +107,20 @@ public class WidgetProvider extends AppWidgetProvider {
                 r.setInt(R.id.cdp_row_tit, "setTextColor", hecha ? COLOR_TXT2 : COLOR_TXT);
                 r.setInt(R.id.cdp_row_tit, "setPaintFlags",
                         (hecha ? Paint.STRIKE_THRU_TEXT_FLAG : 0) | Paint.ANTI_ALIAS_FLAG);
-                r.setTextViewText(R.id.cdp_row_chk, hecha ? "\u2713" : "");
-                r.setInt(R.id.cdp_row_chk, "setTextColor", acento);
+                /* v1.9.3: check PREMIUM y TOCABLE - circulo vacio (marcar) o check verde (desmarcar) */
+                r.setTextViewText(R.id.cdp_row_chk, hecha ? "\u2713" : "\u25ef");
+                r.setInt(R.id.cdp_row_chk, "setTextColor", hecha ? COLOR_OK : COLOR_CHECK_OFF);
+                if (tid > 0) {
+                    try {
+                        Intent ti = ctx.getPackageManager().getLaunchIntentForPackage(ctx.getPackageName());
+                        if (ti != null) {
+                            ti.putExtra("cdp_toggle", String.valueOf(tid));
+                            PendingIntent pl = PendingIntent.getActivity(ctx, 83000 + tid, ti,
+                                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                            r.setOnClickPendingIntent(R.id.cdp_row_chk, pl);
+                        }
+                    } catch (Exception ignored) { }
+                }
                 v.addView(R.id.cdp_widget_fila, r);
                 n++;
             }

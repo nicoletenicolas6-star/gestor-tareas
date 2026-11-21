@@ -65,7 +65,7 @@ jobs:
       - name: Preparar artefacto
         run: |
           mkdir -p apk
-          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.9.2-debug.apk
+          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk apk/Gestor-de-Tareas-v1.9.3-debug.apk
           ls -la apk/
 
       - name: Subir artefacto
@@ -77,15 +77,17 @@ jobs:
       - name: Publicar release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.9.2-ci
-          name: Gestor de Tareas v1.9.2 (debug)
+          tag_name: v1.9.3-ci
+          name: Gestor de Tareas v1.9.3 (debug)
           body: |
             APK debug generada automáticamente por GitHub Actions.
 
             APK debug generada automáticamente por GitHub Actions.
 
-            n1.9.2: revision visual completa (fondo y tarjetas planas Material 3, CSS
-            duplicado fusionado, botones con iconos SVG de sistema) y el TABLERO
-            (Kanban) ahora se mueve ARRASTRANDO la tarjeta con el dedo entre las
-            tres columnas (tambien siguen los botoncitos y tocar abre los detalles).
+            n1.9.3: el WIDGET ahora se refresca solito cuando marcas tareas y se ve
+            mas premium (titulo mas grande, filas con mas aire, fondos mas suaves)
+            y cada fila tiene un CHECK que puedes TOCAR para marcar la tarea como
+            hecha derecho desde la pantalla principal (vuelve a tocar para
+            desmarcar). Tambien: tocar una tarea del ENFOQUE DE HOY en el inicio
+            abre su dialogo de detalles (ya no manda al formulario).
           files: apk/*.apk

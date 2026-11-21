@@ -1161,7 +1161,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 "use strict";
 var K='mtp_organizador_tareas';
 /* === v1.8.0: actualizacion automatica desde GitHub Releases === */
-var VER_APP='1.9.2';
+var VER_APP='1.9.3';
 var ACTU={chk:0};
 var ACTU_TIPS=[
   'Toca una tarea para ver sus detalles sin entrar a editarla.',
@@ -1404,10 +1404,10 @@ function cargar(){
 }
 function guardar(){
   try{localStorage.setItem(K,JSON.stringify(S));}catch(e){toast('No se pudo guardar: '+e.message);}
-  copiaAuto();
-  syncNotif();
-  syncCal();
-  widgetPush();
+  try{copiaAuto();}catch(e){}
+  try{syncNotif();}catch(e){}
+  try{syncCal();}catch(e){}
+  try{widgetPush();}catch(e){} /* v1.9.3: cada paso protege al siguiente; el widget nunca se queda sin refrescar */
 }
 /* === widget de android (pt.10): la app le pasa las tareas de hoy al plugin === */
 function widgetDatos(){
@@ -1416,7 +1416,7 @@ function widgetDatos(){
     ts.sort(function(a,b){var ha=horaMinutos(a.hora),hb=horaMinutos(b.hora);
       return (ha===null?9999:ha)-(hb===null?9999:hb);});
     ts.slice(0,10).forEach(function(t){
-      lineas.push({h:t.hora?t.hora:'\u2014',t:(t.titulo||'Nota de voz')+(t.__oc?' \u00b7repite':''),hecha:!!t.hecha,c:colorTipo(t)});
+      lineas.push({h:t.hora?t.hora:'\u2014',t:(t.titulo||'Nota de voz')+(t.__oc?' \u00b7repite':''),hecha:!!t.hecha,c:colorTipo(t),id:t.id});
     });
     /* hechas de hoy al final, para que el widget las muestre tachadas mientras hay sitio */
     if(lineas.length<12){
@@ -1424,11 +1424,11 @@ function widgetDatos(){
       hs.sort(function(a,b){var ha=horaMinutos(a.hora),hb=horaMinutos(b.hora);
         return (ha===null?9999:ha)-(hb===null?9999:hb);});
       for(var i2=0;i2<hs.length&&lineas.length<12;i2++){
-        var th=hs[i2];lineas.push({h:th.hora?th.hora:'\u2014',t:(th.titulo||'Nota de voz'),hecha:true,c:colorTipo(th)});
+        var th=hs[i2];lineas.push({h:th.hora?th.hora:'\u2014',t:(th.titulo||'Nota de voz'),hecha:true,c:colorTipo(th),id:th.id});
       }
     }
     var nv=0;
-    U().tareas.forEach(function(t){if(!t.hecha&&!t.inbox&&t.fecha&&t.fecha<h){lineas.unshift({h:'\u26a0',t:'Vencida: '+(t.titulo||'Nota de voz'),hecha:false,c:'#C25A00'});nv++;}});
+    U().tareas.forEach(function(t){if(!t.hecha&&!t.inbox&&t.fecha&&t.fecha<h){lineas.unshift({h:'\u26a0',t:'Vencida: '+(t.titulo||'Nota de voz'),hecha:false,c:'#C25A00',id:t.id});nv++;}});
     var acento='';
     try{var cA=getComputedStyle(document.documentElement).getPropertyValue('--pri').trim();
       if(/^#[0-9A-Fa-f]{6}$/.test(cA))acento=cA;}catch(eA){}
@@ -3730,7 +3730,7 @@ function vistaAjustes(){
         '<input type="checkbox" id="a-actup" '+(S.actUp?'checked':'')+' style="width:20px;height:20px;accent-color:var(--pri)">'+
         '<span style="font-weight:700">Buscar actualizaciones al abrir <small style="font-weight:400;color:var(--sub);display:block">Comprueba cada vez que abres o vuelves a la app</small></span></label>'+
       '<button class="btn sec" id="a-actnow" style="margin-top:6px">🔎 Verificar ahora</button>'+
-      '<p style="font-size:12px;color:var(--sub);margin:10px 0 0">Versión instalada: <b>1.9.2</b></p></div>',
+      '<p style="font-size:12px;color:var(--sub);margin:10px 0 0">Versión instalada: <b>1.9.3</b></p></div>',
     cuenta: '<h2 class="sec">Cuenta</h2><div class="tar" style="display:flex;align-items:center;gap:12px">'+
       '<span class="avatar" style="width:46px;height:46px;font-size:19px;border-radius:14px;background:var(--pri)">'+esc(inicial(S.sesion))+'</span>'+
       '<div><div style="font-weight:800;font-size:17px">'+esc(S.sesion)+'</div>'+
@@ -5045,7 +5045,7 @@ function enlazar(){
   if(efo)efo.addEventListener('click',ordenarMiDia);
   document.querySelectorAll('.ef-row').forEach(function(el){
     if(el.__ev)return;el.__ev=1;
-    el.addEventListener('click',function(){editar(+el.getAttribute('data-ef'));});});
+    el.addEventListener('click',function(){abrirDetalle(+el.getAttribute('data-ef')); /* v1.9.3: dialogo, no form */});});
   document.querySelectorAll('[data-vt]').forEach(function(b){
     if(b.__ev)return;b.__ev=1;
     b.addEventListener('click',function(){S.ui.vTareas=b.getAttribute('data-vt');guardar();render();});});
@@ -5602,6 +5602,18 @@ inpf.accept='image/*';inpf.style.display='none';document.body.appendChild(inpf);
 try{ render(); }catch(e){ console.error('render',e); toast('Error al dibujar: '+e.message); }
 setTimeout(function(){try{leerCompartido();}catch(e){}},900);
 try{ widgetPush(); }catch(e){}
+/* v1.9.3: el widget manda cdp_toggle=<id> cuando tocas su check; marcar aqui */
+function widgetIntenta(){
+  try{
+    if(!window.cdpWidget||!cdpWidget.intent)return;
+    cdpWidget.intent(function(v){
+      v=String(v||'');
+      if(v){var t=porId(+v);if(t)marcarEstado(t);}
+    },function(){});
+  }catch(e){}
+}
+setTimeout(function(){widgetIntenta();},900);
+document.addEventListener('resume',function(){setTimeout(function(){widgetIntenta();},350);},false);
 /* auto-import con reintentos: el plugin puede llegar tarde al arranque en frio */
 function intentaAutoImp(retr){
   try{ importarCalAuto(); }catch(e){ console.error('calAuto',e); }
